@@ -11,6 +11,7 @@ import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isE
 import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1791962003';
 import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1791962003';
 import { displayOf } from '../meta/rating.js?v=1791962003';
+import { SPRITE_BOX } from './spritebox.js?v=1791962003';
 
 
 const ASSET = 'assets';
@@ -39,11 +40,22 @@ if (typeof document !== 'undefined') {
 // Escape user-supplied text (multiplayer names). Card data is trusted; names are not.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const staticSprite = (card, cls = 'tiny', mine = false) => `<img class="${cls}" src="${pokeSrc(card.id, mine)}" alt="">`;
+// Card art: crop/zoom to the sprite's opaque bounding box so the figure fills ~85% of the art area.
+// --k scales the 96px source; --cx/--cy are the bbox centre (source px). CSS positions the image from these.
+const ART_H = 56, ART_W = 66;
+function spriteStyle(id) {
+  const b = SPRITE_BOX[id];
+  if (!b) return '';
+  const bw = b[2] - b[0], bh = b[3] - b[1];
+  const k = Math.min((ART_H * 0.88) / bh, ART_W / bw, 1.4);
+  return `style="--k:${k.toFixed(3)};--cx:${(b[0] + b[2]) / 2};--cy:${(b[1] + b[3]) / 2}"`;
+}
 // Own cards with an equipped skin use the skin PNG (no gif); everything else keeps the animated gif.
 const animSprite = (card, mine = false) => {
   const skin = mine ? pokeSrc(card.id, true) : null;
-  if (skin && skin !== pokeSrc(card.id)) return `<img class="sprite" src="${skin}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
-  return `<img class="sprite" src="${animSrc(card.id)}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
+  const st = spriteStyle(card.id);
+  if (skin && skin !== pokeSrc(card.id)) return `<img class="sprite" ${st} src="${skin}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
+  return `<img class="sprite" ${st} src="${animSrc(card.id)}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
 };
 
 // ---------- cosmetics (my equipped set; opponents' values are a TODO until the net protocol carries them) ----------
@@ -78,7 +90,7 @@ export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableN
   return `<button class="${classes}" ${attrs}>
     ${card.points ? `<span class="pts">${card.points}</span>` : ''}
     <span class="bonusicons">${bonuses.map((b) => ballImg(b, 'bonusdotimg')).join('')}</span>
-    <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}</span>
+    <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" ${spriteStyle(card.id)} src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}</span>
     <span class="nm">${tag}${card.name}</span>
     <span class="cost">${cost}</span>
     ${card.evolvesTo ? '<span class="grow" title="성장 가능" aria-label="성장 가능">↗</span>' : ''}
@@ -92,8 +104,9 @@ function tierRow(ctrl, key) {
   const reservableDeck = ['1', '2', '3'].includes(key);
   const deckN = s.decks[key].length;
   const canDeck = reservableDeck && ctrl.canReserve() && deckN > 0;
+  const mark = { 1: '<i></i>', 2: '<i></i><i></i>', 3: '<i></i><i></i><i></i>', rare: '희', legend: '전' }[key];
   const deck = `<button class="deck k${key}" ${canDeck ? `data-action="deck" data-tier="${key}"` : 'disabled'} aria-label="${tierLabel[key]} 덱 ${deckN}장">
-      <b>${deckN}</b><span>${tierLabel[key].replace('단계', '')}</span></button>`;
+      <span class="dm">${mark}</span><b>${deckN}</b></button>`;
   const cards = s.table[key].map((card) => (card ? cardHTML(card, ctrl, { buyable: ctrl.canBuy(card.id), buyableNext: ctrl.canBuyAfterTake(card.id) }) : emptySlot())).join('');
   return { deck, cards };
 }
@@ -185,7 +198,7 @@ export function supplyHTML(ctrl) {
     const empty = s.supply[k] === 0;
     const pickable = canPick && k !== MASTER;
     return `<button class="ball ${n ? 'sel' : ''} ${empty ? 'empty' : ''}" ${pickable ? `data-action="ball" data-color="${k}"` : 'disabled'}>
-      <span class="ballwrap">${ballImg(k, 'ballspr')}${n ? `<span class="selcount">×${n}</span>` : ''}</span>
+      <span class="ballwrap">${ballImg(k, 'ballspr')}</span>${n ? `<span class="selcount">${n}</span>` : ''}
       <span class="bnm">${BALLS[k].name}</span><span class="cnt">${s.supply[k]}개</span></button>`;
   }).join('');
 }
@@ -735,6 +748,8 @@ function itemPreview(it, inv) {
   return '<span class="pv-emote">🎴</span>';
 }
 
+const RARITY_KO = { common: '일반', rare: '희귀', epic: '영웅', legendary: '전설' };
+
 export function shopHTML({ inv, tab, toast = '' }) {
   const items = CATALOG.filter((i) => i.type === tab);
   const rows = items.map((it) => {
@@ -751,7 +766,7 @@ export function shopHTML({ inv, tab, toast = '' }) {
     return `<div class="shopitem ${own ? 'own' : ''} ${eq ? 'eq' : ''}">
       <div class="si-pv">${itemPreview(it, inv)}</div>
       <div class="si-info"><b>${esc(itemName(it))}</b><small>${esc(it.description.ko)}</small>
-        <span class="si-meta"><em class="rar ${it.rarity}">${it.rarity}</em><span class="si-price ${free ? 'free' : ''}">${own ? '보유' : price}</span></span></div>
+        <span class="si-meta"><em class="rar ${it.rarity}">${RARITY_KO[it.rarity] ?? it.rarity}</em><span class="si-price ${free ? 'free' : ''}">${own ? '보유' : price}</span></span></div>
       <div class="si-btn">${btn}</div></div>`;
   }).join('');
   return `<div class="overlay"><div class="panel shoppanel">
