@@ -1,5 +1,8 @@
-// Firebase config for multiplayer (poke-splender-c253e project, Pokemon Splendor only).
-// Realtime Database rules:
+// Firebase config for multiplayer (poke-splender-c253e project, shared with the original game).
+// NOTE: this game uses DB path "ohsp-rooms" (not "pkmspl-rooms"). The Realtime Database rules MUST allow it
+// (add this block next to the existing pkmspl-rooms one, or use a new Firebase project):
+//     "ohsp-rooms": { ".read": true, "$code": { ".write": true } }
+// Realtime Database rules (original):
 //   {
 //     "rules": {
 //       "pkmspl-rooms": {

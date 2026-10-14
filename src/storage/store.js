@@ -2,11 +2,11 @@
 // Storage is injected so tests can use a Map-backed fake; every access is try/catch'd because
 // localStorage can throw (private mode, blocked site data) and the game must still run without it.
 
-export const DEX_KEY = 'pks-dex-v1';
-export const SAVE_KEY = 'pks-save-v1';
-export const OPTS_KEY = 'pks-opts-v1';
-export const ACHV_KEY = 'pks-achv-v1';
-export const RECORDS_KEY = 'pks-records-v1';
+export const DEX_KEY = 'ohsp-dex-v1';
+export const SAVE_KEY = 'ohsp-save-v1';
+export const OPTS_KEY = 'ohsp-opts-v1';
+export const ACHV_KEY = 'ohsp-achv-v1';
+export const RECORDS_KEY = 'ohsp-records-v1';
 
 export function browserStorage() {
   try { return globalThis.localStorage ?? null; } catch { return null; }

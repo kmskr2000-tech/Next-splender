@@ -48,18 +48,18 @@ export class NetSession {
   // close can resume the same seat within a few minutes.
   saveRejoin(code, playerIndex) {
     try {
-      localStorage.setItem('pkmspl-rejoin', JSON.stringify({ code, playerIndex, at: Date.now() }));
+      localStorage.setItem('ohsp-rejoin', JSON.stringify({ code, playerIndex, at: Date.now() }));
     } catch {}
   }
   loadRejoin(code) {
     try {
-      const o = JSON.parse(localStorage.getItem('pkmspl-rejoin'));
+      const o = JSON.parse(localStorage.getItem('ohsp-rejoin'));
       if (o && o.code === code && Date.now() - o.at < 10 * 60 * 1000) return o;
     } catch {}
     return null;
   }
   clearRejoin() {
-    try { localStorage.removeItem('pkmspl-rejoin'); } catch {}
+    try { localStorage.removeItem('ohsp-rejoin'); } catch {}
   }
 
   cleanName(n) {

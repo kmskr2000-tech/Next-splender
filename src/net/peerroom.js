@@ -6,7 +6,7 @@
 
 import { parseMsg } from './protocol.js?v=1791962003';
 
-const ID_PREFIX = 'pkmspl-';
+const ID_PREFIX = 'ohsp-';
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no confusing 0/O/1/I
 
 export function genCode(len = 6) {

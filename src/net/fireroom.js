@@ -19,7 +19,7 @@
 import { parseMsg } from './protocol.js?v=1791962003';
 
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no confusing 0/O/1/I
-const ROOMS_PATH = 'pkmspl-rooms';
+const ROOMS_PATH = 'ohsp-rooms';
 
 // Presence: heartbeat every HB_INTERVAL_MS; a peer is considered gone when its
 // last heartbeat is older than HB_TIMEOUT_MS (host) / HOST_STALE_MS (guests
