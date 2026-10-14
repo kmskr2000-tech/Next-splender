@@ -38,11 +38,11 @@
   --next: #2F6FD0;                /* "buy next turn" outline */
   --ghost: #EADBB8; --on-ghost: var(--text);
   /* resource colors (placeholders until the GDD palette is final; reference by var only) */
-  /* 오방 구슬: 적주 흑주 황주 청주 백주 + 여의주 (roster-korea.colors). 텍스트 대비 4.5:1 이상. */
-  --monster: #D63B35; --super: #343B4D; --hyper: #E3B130; --heal: #2E9C8A; --quick: #F1EEE4; --master: #5CCFE0;
-  --monster-edge: #7A1F1A; --super-edge: #12151F; --hyper-edge: #8B5A2B; --heal-edge: #14493E; --quick-edge: #8C8A80; --master-edge: #2A7F8C;
+  /* 한국 보물: 노리개 다홍 / 나전함 흑칠 / 복주머니 황금 / 청자 비색 / 백자 / 마패 청동 (임시값, 아트팀 확정 hex로 교체 예정). 텍스트 대비 4.5:1 이상. */
+  --monster: #C8323A; --super: #2B2622; --hyper: #D9A520; --heal: #6FA89A; --quick: #F4F1E8; --master: #9C6B3A;
+  --monster-edge: #7A1F1A; --super-edge: #12151F; --hyper-edge: #8B5A2B; --heal-edge: #3F6F63; --quick-edge: #8C8A80; --master-edge: #5E3F1E;
   --master-accent: #F2C14E;
-  --on-monster: #FFFFFF; --on-super: #FFFFFF; --on-hyper: var(--ink); --on-heal: var(--ink); --on-quick: var(--ink); --on-master: var(--ink);
+  --on-monster: #FFFFFF; --on-super: #FFFFFF; --on-hyper: var(--ink); --on-heal: var(--ink); --on-quick: var(--ink); --on-master: #FFFFFF;
   /* rarity tints on white cards */
   --rare-bg: #FDE9A9; --legend-bg: #DCD3F5;
   --rare-tag: #8A5200; --legend-tag: #5B3FB0;
@@ -152,15 +152,12 @@ img { image-rendering: pixelated; }
 .dock-top .tkcount { font-size: 10px; white-space: nowrap; }
 
 /* ---------- pips (bonus counters) ---------- */
-.pip { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 14px; height: 18px; font-size: 11px; color: #fff; border: 2px solid var(--ink); padding: 0 3px; }
-.d-monster { background: var(--monster); color: var(--on-monster); } .d-super { background: var(--super); color: var(--on-super); }
-.d-hyper { background: var(--hyper); color: var(--on-hyper); } .d-heal { background: var(--heal); color: var(--on-heal); }
-.d-quick { background: var(--quick); color: var(--on-quick); } .d-master { background: var(--master); color: var(--on-master); }
-.d-quick { box-shadow: inset 0 0 0 1px var(--quick-edge); }
-.d-master { box-shadow: inset 0 0 0 1px var(--master-accent); }
-.pip .hj { font-size: 9px; line-height: 1; }
+.pip { background: var(--panel-2); border-bottom: 4px solid var(--c, var(--ink)); display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 14px; height: 18px; font-size: 11px; color: var(--text); border: 2px solid var(--ink); padding: 0 3px; }
+.d-monster { --c: var(--monster); } .d-super { --c: var(--super); } .d-hyper { --c: var(--hyper); }
+.d-heal { --c: var(--heal); } .d-quick { --c: var(--quick-edge); } .d-master { --c: var(--master); }
+.pip .mini2 { width: 16px; height: 16px; }
 .pips.big { display: flex; gap: 6px; }
-.pips.big .pip { height: 22px; min-width: 34px; font-size: 12px; gap: 3px; }
+.pips.big .pip { height: 26px; min-width: 34px; font-size: 12px; gap: 3px; }
 
 /* ---------- board ---------- */
 .board { padding: 8px 8px 2px 10px; }
@@ -190,7 +187,7 @@ button.card:not(:disabled):active { transform: translate(2px, 2px); box-shadow: 
   font-size: 11px; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
 }
 .card .bonusicons { position: absolute; top: 1px; right: 1px; display: flex; flex-direction: column; }
-.bonusdotimg { width: 16px; height: 16px; filter: drop-shadow(1px 1px 0 var(--ink)); }
+.bonusdotimg { width: 14px; height: 14px; padding: 1px; background: #fff; border: 2px solid var(--ink); border-radius: 50%; box-sizing: content-box; }
 .card .sprite { height: 46px; width: auto; max-width: 100%; margin-top: 14px; object-fit: contain; }
 .card .nm { font-size: 9px; margin: 2px 0 3px; line-height: 1.3; word-break: keep-all; }
 .card .cost { display: flex; flex-wrap: wrap; gap: 1px; justify-content: center; }
@@ -230,7 +227,7 @@ button.card:not(:disabled):active { transform: translate(2px, 2px); box-shadow: 
 .mytk em { font-style: normal; color: var(--obang-red); font-size: 10px; }
 .tkwrap { display: inline-flex; align-items: center; }
 .tkminus { min-width: 28px; min-height: 28px; margin-left: 2px; font: inherit; font-size: 14px; color: var(--on-red); background: var(--obang-red); border: 2px solid var(--ink); cursor: pointer; }
-.mytkimg { width: 24px; height: 24px; }
+.mytkimg { width: 26px; height: 26px; }
 .mytk span { font-size: 13px; color: var(--text); }
 .mypoke { display: flex; flex-direction: column; gap: 4px; }
 .grp { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 5px; border-left: 5px solid #999; }
@@ -425,9 +422,7 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
   .rail { width: 52px; }
 }
 
-/* 한자 표기 (색각 이상 보조) + 인물 설명 */
-.hj { font-style: normal; }
-.bnm .hj { opacity: .75; margin-left: 2px; font-size: 9px; }
+/* 인물 설명 */
 .relinfo { font-size: 11px; color: var(--text); line-height: 1.6; margin-top: 4px; }
 .relinfo small { display: block; color: var(--muted); font-size: 10px; }
 .dexcell .dd { color: var(--muted); font-size: 8px; line-height: 1.3; word-break: keep-all; }

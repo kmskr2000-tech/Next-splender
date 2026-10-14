@@ -35,8 +35,8 @@ export const CHALLENGES = [
   },
   {
     id: 'ch4',
-    name: '오방색 가호',
-    desc: '18턴 안에 적·흑·황·청·백 5가지 보너스 모두 모으기',
+    name: '오보(五寶) 가호',
+    desc: '18턴 안에 노리개·나전함·복주머니·청자·백자 5종 보너스 모두 모으기',
     goal: { bonusColors: 5 },
     maxTurns: 18,
     difficulty: 'normal',
@@ -73,7 +73,7 @@ export function challengeProgress(challenge, ctrl, getPoints, bonusList) {
   if (g.bonusColors != null) {
     const colors = new Set();
     for (const card of me.tableau) for (const b of bonusList(card)) colors.add(b);
-    return { cur: colors.size, target: g.bonusColors, label: '색상' };
+    return { cur: colors.size, target: g.bonusColors, label: '종류' };
   }
   if (g.special != null) {
     const n = me.tableau.filter((c) => c.tier === 'rare' || c.tier === 'legend').length;

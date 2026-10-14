@@ -27,8 +27,15 @@ const TRAINER_FACE = {
 };
 export const trainerFaceSrc = (name) => TRAINER_FACE[name] ? `${ASSET}/trainers/${TRAINER_FACE[name]}.webp` : null;
 
-const hj = (k) => (BALLS[k].hanja ? `<i class="hj" aria-hidden="true">${BALLS[k].hanja}</i>` : '');
-const ballImg = (key, cls = 'miniball') => `<img class="${cls}" src="${ballSrc(key)}" alt="${BALLS[key].name}">`;
+// 2x icon for hi-dpi screens; falls back to the 1x file if the 2x asset is missing.
+export const ballSrc2x = (key) => `${ASSET}/items/2x/${BALLS[key].file}.png`;
+const ballImg = (key, cls = 'miniball') => `<img class="${cls}" src="${ballSrc(key)}" srcset="${ballSrc2x(key)} 2x" data-fb="1" alt="${BALLS[key].name}">`;
+if (typeof document !== 'undefined') {
+  document.addEventListener('error', (e) => {
+    const t = e.target;
+    if (t && t.tagName === 'IMG' && t.dataset.fb) { delete t.dataset.fb; t.removeAttribute('srcset'); t.src = t.getAttribute('src'); }
+  }, true);
+}
 // Escape user-supplied text (multiplayer names). Card data is trusted; names are not.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const staticSprite = (card, cls = 'tiny', mine = false) => `<img class="${cls}" src="${pokeSrc(card.id, mine)}" alt="">`;
@@ -180,7 +187,7 @@ export function supplyHTML(ctrl) {
     const pickable = canPick && k !== MASTER;
     return `<button class="ball ${n ? 'sel' : ''} ${empty ? 'empty' : ''}" ${pickable ? `data-action="ball" data-color="${k}"` : 'disabled'}>
       <span class="ballwrap">${ballImg(k, 'ballspr')}${n ? `<span class="selcount">×${n}</span>` : ''}</span>
-      <span class="bnm">${BALLS[k].name}${hj(k)}</span><span class="cnt">${s.supply[k]}개</span></button>`;
+      <span class="bnm">${BALLS[k].name}</span><span class="cnt">${s.supply[k]}개</span></button>`;
   }).join('');
 }
 
@@ -241,7 +248,7 @@ export function actionBarHTML(ctrl) {
   if (s.phase === PHASES.DISCARD) {
     const need = ctrl.discardNeed;
     const have = ctrl.discardCount();
-    return `<div class="hint">구슬이 10개를 넘었어요. 내 구슬을 눌러 <b>${need}개</b> 반환하세요. 누를 때마다 +1, 빨간 − 로 되돌려요. (${have}/${need})</div>${err}
+    return `<div class="hint">보물이 10개를 넘었어요. 내 보물을 눌러 <b>${need}개</b> 반환하세요. 누를 때마다 +1, 빨간 − 로 되돌려요. (${have}/${need})</div>${err}
       <div class="btnrow"><button class="btn ghost" data-action="clear">초기화</button>
       <button class="btn primary" data-action="confirm-discard" ${have === need ? '' : 'disabled'}>${need}개 반환</button></div>`;
   }
@@ -261,12 +268,12 @@ export function actionBarHTML(ctrl) {
   const n = ctrl.balls.length;
   const valid = ctrl.pendingValid();
   const pe = ctrl.pendingError();
-  let hint = '구슬을 고르거나, 카드를 눌러 영입·찜하기를 하세요.';
+  let hint = '보물을 고르거나, 카드를 눌러 영입·찜하기를 하세요.';
   if (n) {
     const names = ctrl.balls.map((c) => BALLS[c].name).join('·');
-    hint = valid ? `${names} 선택! 가져가기를 눌러 턴을 마치세요.` : `${names} 선택 중 — ${pe ? ({ bad_ball_count: '서로 다른 구슬을 3개까지 골라주세요.' }[pe] ?? '') : ''}`;
+    hint = valid ? `${names} 선택! 가져가기를 눌러 턴을 마치세요.` : `${names} 선택 중 — ${pe ? ({ bad_ball_count: '서로 다른 보물을 3개까지 골라주세요.' }[pe] ?? '') : ''}`;
   }
-  const label = n === 2 && ctrl.balls[0] === ctrl.balls[1] ? `${BALLS[ctrl.balls[0]].name} 2개 가져가기` : (n ? `구슬 ${n}개 가져가기` : '구슬 가져가기');
+  const label = n === 2 && ctrl.balls[0] === ctrl.balls[1] ? `${BALLS[ctrl.balls[0]].name} 2개 가져가기` : (n ? `보물 ${n}개 가져가기` : '보물 가져가기');
   return `<div class="hint">${hint}</div>${err}
     <div class="btnrow"><button class="btn ghost" data-action="clear" ${n ? '' : 'disabled'}>선택 취소</button>
     <button class="btn primary" data-action="confirm-balls" ${valid ? '' : 'disabled'}>${label}</button></div>`;
@@ -281,8 +288,8 @@ export function dockHTML(ctrl) {
       ${avatarHTML(me.name, ctrl.human, { me: true, cls: 'sm' })}
       <span class="dock-name">${esc(me.name)}</span>
       <span class="dock-sc"><b>${getPoints(me)}</b>점</span>
-      <span class="dock-pips">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${hj(c)}${b[c]}</span>`).join('')}</span>
-      <span class="tkcount ${tc >= 10 ? 'full' : ''}">구슬 ${tc}/10</span>
+      <span class="dock-pips">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</span>
+      <span class="tkcount ${tc >= 10 ? 'full' : ''}">보물 ${tc}/10</span>
     </div>
     <div class="mytokens">${tokensHTML(ctrl)}</div>
     ${actionBarHTML(ctrl)}`;
@@ -333,8 +340,8 @@ function oppSheetHTML(p, ctrl) {
   return `<div class="sheet-back" data-action="close"></div><div class="sheet wide">
     <div class="sheet-title">${avatarHTML(p.name, p.id, { me: p.id === ctrl.human, cls: 'md' })}${p.isAI ? aiPrefix(ctrl) : ''}${esc(p.name)} <small>· ${getPoints(p)}점 · 성장 ${p.evolved.length}회</small></div>
     <div class="olbl">■ 보너스 (할인)</div>
-    <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${hj(c)}${b[c]}</span>`).join('')}</div>
-    <div class="olbl">■ 가진 구슬 (${tokenCount(p)}/10)</div>
+    <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</div>
+    <div class="olbl">■ 가진 보물 (${tokenCount(p)}/10)</div>
     <div class="otks">${tokens}</div>
     <div class="olbl">■ 인물 (${p.tableau.length}명)</div>
     <div class="opoke">${groups || '<div class="empty-note">아직 없음</div>'}</div>
@@ -353,8 +360,8 @@ function shortfallHTML(player, card) {
     return `<span class="need ${have >= need ? 'ok' : 'lack'}">${ballImg(c, 'mini2')}${have}/${need}</span>`;
   }).join('');
   const masterNote = isSpecial(card) && !(player.tokens[MASTER] > 0)
-    ? `<span class="need lack">${ballImg(MASTER, 'mini2')}여의주 필요</span>` : '';
-  return parts + masterNote || '구슬이 부족해요';
+    ? `<span class="need lack">${ballImg(MASTER, 'mini2')}마패 필요</span>` : '';
+  return parts + masterNote || '보물이 부족해요';
 }
 
 export function sheetHTML(ctrl) {
@@ -384,7 +391,7 @@ export function sheetHTML(ctrl) {
   if (sh.kind === 'deck') {
     return `<div class="sheet-back" data-action="close"></div><div class="sheet">
       <div class="sheet-title">${tierLabel[sh.tier]} 덱 맨 위 카드</div>
-      <p class="sheet-p">뒷면 그대로 찜해요. 여의주가 남아 있으면 1개를 받아요.</p>
+      <p class="sheet-p">뒷면 그대로 찜해요. 마패가 남아 있으면 1개를 받아요.</p>
       <div class="btnrow"><button class="btn ghost" data-action="close">닫기</button>
       <button class="btn primary" data-action="reserve-deck" data-tier="${sh.tier}" ${ctrl.canReserve() ? '' : 'disabled'}>찜하기</button></div></div>`;
   }
@@ -402,12 +409,12 @@ export function sheetHTML(ctrl) {
   const canReserve = !inHand && !isSpecial(card) && ctrl.canReserve();
   const reserveNote = inHand ? '' : isSpecial(card) ? '희귀·전설은 찜 불가' : !ctrl.canReserve() ? '찜 한도(3장) 초과' : '';
   const masterLeft = ctrl.state.supply[MASTER] > 0;
-  const reserveLabel = masterLeft ? '찜하기 (+여의주)' : '찜하기 (여의주 품절)';
+  const reserveLabel = masterLeft ? '찜하기 (+마패)' : '찜하기 (마패 품절)';
   return `<div class="sheet-back" data-action="close"></div><div class="sheet">
     <div class="sheet-card">${cardHTML(card, ctrl, { interactive: false, mine: inHand })}</div>
     <div class="sheet-info">
       <div class="sheet-title">${card.name}</div>
-      <div class="paylbl">내가 낼 구슬 (보너스 할인 적용)</div>
+      <div class="paylbl">내가 낼 보물 (보너스 할인 적용)</div>
       <div class="pay ${payCls}">${payText}</div>
       ${reserveNote ? `<div class="note">${reserveNote}</div>` : ''}
       ${relHTML(card)}
@@ -426,19 +433,19 @@ export function rulesHTML() {
       <h4>■ 목표</h4>
       <p><b>21점</b>을 먼저 모으면 마지막 라운드! 전원이 같은 턴 수를 마치면 종료, 최고점이 승리해요.</p>
       <h4>■ 내 차례에 하는 일 (하나만 선택)</h4>
-      <p>① <b>서로 다른 구슬 3개</b> 가져오기 (여의주 제외)<br>
-      ② <b>같은 구슬 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
-      ③ <b>카드 찜하기</b> (최대 3장, 여의주 1개를 받아요 · 여의주는 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
-      ④ <b>인물 영입</b> (구슬을 내고 카드를 데려와요)<br>
-      <span style="color:var(--ok)">■</span> <b>초록 테두리</b>=지금 바로 영입할 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 테두리</b>=고른 구슬을 가져가면 다음 턴에 영입할 수 있음</p>
+      <p>① <b>서로 다른 보물 3개</b> 가져오기 (마패 제외)<br>
+      ② <b>같은 보물 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
+      ③ <b>카드 찜하기</b> (최대 3장, 마패 1개를 받아요 · 마패는 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
+      ④ <b>인물 영입</b> (보물을 내고 카드를 데려와요)<br>
+      <span style="color:var(--ok)">■</span> <b>초록 테두리</b>=지금 바로 영입할 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 테두리</b>=고른 보물을 가져가면 다음 턴에 영입할 수 있음</p>
       <h4>■ 보너스 = 할인</h4>
-      <p>영입한 인물의 보너스 1개(희귀/전설은 2개)마다 같은 색 구슬 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
+      <p>영입한 인물의 보너스 1개(희귀/전설은 2개)마다 같은 종류 보물 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
       <h4>■ 성장</h4>
       <p>내 턴이 끝나면, 성장 조건의 보너스를 갖춘 인물은 다음 단계로 <b>성장</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)</p>
-      <h4>■ 구슬 10개 제한</h4>
-      <p>여의주 포함 10개를 넘기면, 초과분을 골라 반환해야 해요.</p>
-      <h4>■ 여의주</h4>
-      <p>어떤 구슬이든 1개로 대신할 수 있는 만능 구슬! <b>희귀/전설 인물을 영입하려면 여의주 1개가 꼭 필요</b>해요.</p>
+      <h4>■ 보물 10개 제한</h4>
+      <p>마패 포함 10개를 넘기면, 초과분을 골라 반환해야 해요.</p>
+      <h4>■ 마패</h4>
+      <p>마패는 어떤 보물로도 쓸 수 있어요(암행어사 출두!) <b>희귀/전설 인물을 영입하려면 마패 1개가 꼭 필요</b>해요.</p>
       <h4>■ 동점 처리</h4>
       <p>① 성장 횟수가 많은 쪽 → ② 그래도 동점이면 영입한 인물이 적은 쪽이 이겨요.</p>
     </div>
@@ -448,21 +455,21 @@ export function rulesHTML() {
 
 function beginnerTip(ctrl) {
   const s = ctrl.state;
-  if (s.phase === PHASES.DISCARD) return '구슬이 10개를 넘었어요. 아래 내 구슬을 눌러 초과분을 반환하세요.';
+  if (s.phase === PHASES.DISCARD) return '보물이 10개를 넘었어요. 아래 내 보물을 눌러 초과분을 반환하세요.';
   if (s.phase === PHASES.EVOLVE) return '성장 찬스! 조건을 갖춘 인물을 성장시키면 점수와 보너스가 올라가요.';
   if (!ctrl.isHumanTurn) return null;
   const n = ctrl.balls.length;
   if (n > 0) {
     return ctrl.pendingValid()
-      ? '좋아요! [가져가기]를 누르면 구슬을 가져오고 턴이 끝나요.'
-      : '서로 다른 구슬 3개, 또는 같은 구슬 2개(공급처에 4개 이상 남았을 때)를 고를 수 있어요.';
+      ? '좋아요! [가져가기]를 누르면 보물을 가져오고 턴이 끝나요.'
+      : '서로 다른 보물 3개, 또는 같은 보물 2개(공급처에 4개 이상 남았을 때)를 고를 수 있어요.';
   }
   for (const key of ['1', '2', '3', 'rare', 'legend']) {
     for (const card of s.table[key] || []) {
       if (card && ctrl.canBuy(card.id)) return '지금 바로 영입할 수 있는 인물이 있어요! 반짝이는 카드를 눌러보세요.';
     }
   }
-  return '21점이 목표! 구슬을 모아 인물을 영입하세요. 보너스가 쌓이면 할인이 커져요.';
+  return '21점이 목표! 보물을 모아 인물을 영입하세요. 보너스가 쌓이면 할인이 커져요.';
 }
 
 export function helpHTML(ctrl, options) {
@@ -565,7 +572,7 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
     <div class="home-hero">
       <div class="title big">조선 스플렌더<small>K-SPLENDOR · DOT EDITION</small></div>
       <div class="hero-av">${avatarHTML(options.avatar, 0, { me: true, cls: 'lg' })}</div>
-      <p class="hero-sub">구슬을 모아 21점을 먼저 채워라!</p>
+      <p class="hero-sub">보물을 모아 21점을 먼저 채워라!</p>
     </div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
     <div class="home-match">
