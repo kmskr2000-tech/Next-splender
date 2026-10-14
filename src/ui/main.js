@@ -138,12 +138,13 @@ function tick() {
   if (queue) queueTick();
   if (!ctrl || ctrl.finished) { if (queue) render(); return; }
   const t = turnInfo();
-  const fill = $('timerfill');
-  if (fill) fill.style.width = Math.max(0, Math.min(100, (t.remaining / t.limit) * 100)) + '%';
   const label = $('turntimer');
-  if (label) label.textContent = `⏱ ${t.remaining}초`;
+  if (label) label.textContent = String(t.remaining);
   const bar = $('timerbar');
-  if (bar) bar.classList.toggle('urgent', t.remaining <= 10);
+  if (bar) {
+    bar.style.setProperty('--p', Math.max(0, Math.min(100, (t.remaining / t.limit) * 100)));
+    bar.classList.toggle('urgent', t.remaining <= 10);
+  }
   // Local game: the human seat times out like online seats do.
   if (!ctrl.mp && t.remaining <= 0 && ctrl.isHumanTurn) { ctrl.dispatch({ type: 'timeout' }); render(); }
 }
@@ -168,6 +169,7 @@ function render() {
   else for (const [id] of Object.values(regions)) setHTML(id, '');
 
   checkNetFail();
+  { const ab = $('actionbar'); if (ab && ctrl) document.documentElement.style.setProperty('--dockh', ab.offsetHeight + 'px'); }
   let overlay;
   if (ctrl) overlay = ctrl.finished ? V.endHTML(ctrl, lastResult) : '';
   else if (queue) overlay = V.queueHTML(queueView());

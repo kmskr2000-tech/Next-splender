@@ -72,16 +72,16 @@ export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableN
   const cost = COLORS.filter((c) => card.cost[c])
     .map((c) => `<span class="costchip">${ballImg(c)}${card.cost[c]}</span>`).join('')
     + (special ? `<span class="costchip">${ballImg(MASTER)}1</span>` : '');
-  const classes = ['card', `b-${bonuses[0]}`, special ? card.tier : '', buyable ? 'buyable' : '', buyableNext && !buyable ? 'buyable-next' : '', mine ? myCardFrame() : ''].filter(Boolean).join(' ');
-  const tag = special ? `<span class="tag ${card.tier}">${tierLabel[card.tier]}</span><br>` : '';
+  const classes = ['card', `b-${bonuses[0]}`, `t-${card.tier}`, special ? card.tier : '', card.evolvesTo ? 'has-grow' : '', buyable ? 'buyable' : '', buyableNext && !buyable ? 'buyable-next' : '', mine ? myCardFrame() : ''].filter(Boolean).join(' ');
+  const tag = special ? `<span class="tag ${card.tier}">${tierLabel[card.tier]}</span>` : '';
   const attrs = interactive ? `data-action="card" data-card="${card.id}" data-zone="${zone}"` : 'disabled';
   return `<button class="${classes}" ${attrs}>
     ${card.points ? `<span class="pts">${card.points}</span>` : ''}
     <span class="bonusicons">${bonuses.map((b) => ballImg(b, 'bonusdotimg')).join('')}</span>
-    ${animated ? animSprite(card, mine) : `<img class="sprite" src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}
+    <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}</span>
     <span class="nm">${tag}${card.name}</span>
     <span class="cost">${cost}</span>
-    <span class="evo">${evoText(card, ctrl.cardsById)}</span>
+    ${card.evolvesTo ? '<span class="grow" title="성장 가능" aria-label="성장 가능">↗</span>' : ''}
   </button>`;
 }
 
@@ -92,8 +92,8 @@ function tierRow(ctrl, key) {
   const reservableDeck = ['1', '2', '3'].includes(key);
   const deckN = s.decks[key].length;
   const canDeck = reservableDeck && ctrl.canReserve() && deckN > 0;
-  const deck = `<button class="deck px" ${canDeck ? `data-action="deck" data-tier="${key}"` : 'disabled'}>
-      <b>${deckN}</b>${tierLabel[key]}</button>`;
+  const deck = `<button class="deck k${key}" ${canDeck ? `data-action="deck" data-tier="${key}"` : 'disabled'} aria-label="${tierLabel[key]} 덱 ${deckN}장">
+      <b>${deckN}</b><span>${tierLabel[key].replace('단계', '')}</span></button>`;
   const cards = s.table[key].map((card) => (card ? cardHTML(card, ctrl, { buyable: ctrl.canBuy(card.id), buyableNext: ctrl.canBuyAfterTake(card.id) }) : emptySlot())).join('');
   return { deck, cards };
 }
@@ -138,22 +138,22 @@ const aiPrefix = (ctrl) => (ctrl.simUsers ? '시뮬 ' : 'BOT ');
 export function headerHTML(ctrl, timer = { remaining: 0, limit: 45 }) {
   const s = ctrl.state;
   const round = Math.floor(s.turn / s.players.length) + 1;
-  let badge;
-  if (ctrl.finished) badge = '게임 종료';
-  else if (ctrl.isHumanTurn) badge = '▶ 내 차례';
-  else badge = `${esc(ctrl.current.name)} 차례`;
+  const cur = ctrl.current;
+  let mid;
+  if (ctrl.finished) mid = '<span class="tn">게임 종료</span>';
+  else mid = `${avatarHTML(cur.name, cur.id, { me: ctrl.isHumanTurn })}<span class="tn">${esc(cur.name)}</span>${ctrl.isHumanTurn ? '<span class="pill">내 차례</span>' : ''}`;
   const last = ctrl.lastRound ? `<div class="lastround">마지막 라운드! ${esc(s.players[s.endTriggeredBy].name)}이(가) 21점 달성</div>` : '';
   const pct = ctrl.finished ? 0 : Math.max(0, Math.min(100, (timer.remaining / timer.limit) * 100));
   const urgent = !ctrl.finished && timer.remaining <= 10 ? ' urgent' : '';
   return `<div class="topbar">
-      <div class="round">라운드 <b>${round}</b></div>
-      <div class="turn ${ctrl.isHumanTurn ? 'mine' : ''}">${badge}</div>
+      <div class="round">R<b>${round}</b></div>
+      <div class="turn ${ctrl.isHumanTurn ? 'mine' : ''}">${mid}</div>
+      <div class="timerring${urgent}" id="timerbar" style="--p:${pct}" role="timer" aria-label="남은 시간"><span id="turntimer">${timer.remaining}</span></div>
       <div class="headbtns">
         <button class="iconbtn" data-action="rules" aria-label="룰 설명">?</button>
         <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
       </div>
-    </div>
-    <div class="timerbar${urgent}" id="timerbar"><i id="timerfill" style="width:${pct}%"></i><span id="turntimer">⏱ ${timer.remaining}초</span></div>${last}`;
+    </div>${last}`;
 }
 
 /** Right-side vertical rail: every player's avatar + 21-point progress bar. */
@@ -164,11 +164,10 @@ export function railHTML(ctrl) {
     const pct = Math.min(100, (pts / 21) * 100);
     const active = s.current === p.id && !ctrl.finished;
     const isMe = p.id === ctrl.human;
-    return `<button class="rail-item ${active ? 'active' : ''} ${isMe ? 'me' : ''}" data-action="opp" data-id="${p.id}" aria-label="${esc(p.name)} 상세">
-      <span class="avwrap">${avatarHTML(p.name, p.id, { me: isMe })}${p.isAI ? aiTag(ctrl) : ''}</span>
-      <span class="rnm">${esc(p.name)}</span>
-      <span class="rsc"><b>${pts}</b>/21</span>
-      <span class="hpbar"><i style="width:${pct}%"></i></span>
+    return `<button class="rail-item ${active ? 'active' : ''} ${isMe ? 'me' : ''}" data-action="opp" data-id="${p.id}" title="${esc(p.name)}" aria-label="${esc(p.name)} ${pts}점 상세">
+      <span class="ring" style="--p:${pct}">${avatarHTML(p.name, p.id, { me: isMe })}</span>
+      ${p.isAI ? `<span class="bot">${aiTag(ctrl)}</span>` : ''}
+      <span class="rsc"><b>${pts}</b></span>
     </button>`;
   }).join('');
 }
@@ -196,11 +195,12 @@ export function supplyHTML(ctrl) {
 function tokensHTML(ctrl) {
   const me = ctrl.me;
   const discarding = ctrl.isHumanTurn && ctrl.state.phase === PHASES.DISCARD;
+  const bon = getBonuses(me);
   return TOKEN_KEYS.map((k) => {
     const d = ctrl.discard[k] || 0;
     const attr = discarding && me.tokens[k] > 0 ? `data-action="discard" data-token="${k}"` : 'disabled';
     const minus = discarding && d ? `<button class="tkminus" data-action="undiscard" data-token="${k}" aria-label="${BALLS[k].name} 반환 취소">−</button>` : '';
-    return `<span class="tkwrap"><button class="mytk ${d ? 'dsel' : ''}" ${attr}>${ballImg(k, 'mytkimg')}<span>${me.tokens[k]}</span>${d ? `<em>-${d}</em>` : ''}</button>${minus}</span>`;
+    return `<span class="tkwrap"><button class="mytk ${d ? 'dsel' : ''}" ${attr}>${ballImg(k, 'mytkimg')}<span class="tkv"><span class="tkn">${me.tokens[k]}</span><span class="tkb">${k === MASTER ? '' : (bon[k] ? `+${bon[k]}` : '')}</span></span>${d ? `<em>-${d}</em>` : ''}</button>${minus}</span>`;
   }).join('');
 }
 
@@ -244,13 +244,13 @@ export function actionBarHTML(ctrl) {
   if (!ctrl.isHumanTurn) {
     return aiToastHTML(ctrl) || `<div class="hint">${ctrl.current.name}이(가) 생각 중…</div>`;
   }
-  const err = ctrl.message ? `<div class="hint err">${ctrl.message}</div>` : '';
+  const err = ''; // errors surface as a toast (helpHTML)
   if (s.phase === PHASES.DISCARD) {
     const need = ctrl.discardNeed;
     const have = ctrl.discardCount();
-    return `<div class="hint">보물이 10개를 넘었어요. 내 보물을 눌러 <b>${need}개</b> 반환하세요. 누를 때마다 +1, 빨간 − 로 되돌려요. (${have}/${need})</div>${err}
-      <div class="btnrow"><button class="btn ghost" data-action="clear">초기화</button>
-      <button class="btn primary" data-action="confirm-discard" ${have === need ? '' : 'disabled'}>${need}개 반환</button></div>`;
+    return `<div class="hint">보물이 10개를 넘었어요. 내 보물을 눌러 <b>${need}개</b> 반환하세요. 눌러서 선택, 빨간 − 로 취소.</div>${err}
+      <div class="btnrow"><button class="btn primary" data-action="confirm-discard" ${have === need ? '' : 'disabled'}>${need}개 반환 (${have}/${need})</button>
+      <button class="btn ghost" data-action="clear">초기화</button></div>`;
   }
   if (s.phase === PHASES.EVOLVE) {
     const opts = ctrl.evolveChoices().map((o) => {
@@ -262,36 +262,25 @@ export function actionBarHTML(ctrl) {
       <div class="btnrow col">${opts}<button class="btn ghost" data-action="skip-evolve">성장 안 함</button></div>`;
   }
   if (ctrl.canPass()) {
-    return `<div class="hint">할 수 있는 행동이 없어요.</div>
-      <div class="btnrow"><button class="btn primary" data-action="pass">차례 넘기기</button></div>`;
+    return `<div class="btnrow"><button class="btn primary" data-action="pass">할 수 있는 행동이 없어요 · 차례 넘기기</button></div>`;
   }
   const n = ctrl.balls.length;
   const valid = ctrl.pendingValid();
   const pe = ctrl.pendingError();
-  let hint = '보물을 고르거나, 카드를 눌러 영입·찜하기를 하세요.';
-  if (n) {
-    const names = ctrl.balls.map((c) => BALLS[c].name).join('·');
-    hint = valid ? `${names} 선택! 가져가기를 눌러 턴을 마치세요.` : `${names} 선택 중 — ${pe ? ({ bad_ball_count: '서로 다른 보물을 3개까지 골라주세요.' }[pe] ?? '') : ''}`;
-  }
   const label = n === 2 && ctrl.balls[0] === ctrl.balls[1] ? `${BALLS[ctrl.balls[0]].name} 2개 가져가기` : (n ? `보물 ${n}개 가져가기` : '보물 가져가기');
-  return `<div class="hint">${hint}</div>${err}
-    <div class="btnrow"><button class="btn ghost" data-action="clear" ${n ? '' : 'disabled'}>선택 취소</button>
-    <button class="btn primary" data-action="confirm-balls" ${valid ? '' : 'disabled'}>${label}</button></div>`;
+  return `<div class="btnrow"><button class="btn primary" data-action="confirm-balls" ${valid ? '' : 'disabled'}>${label}</button>
+    <button class="btn ghost" data-action="clear" ${n ? '' : 'disabled'}>취소</button></div>`;
 }
 
-/** Bottom shop-bar: my score, bonuses, resources, then the action buttons. */
+/** Bottom dock: my score + one-line treasure/bonus row, then the single primary action. */
 export function dockHTML(ctrl) {
   const me = ctrl.me;
-  const b = getBonuses(me);
   const tc = tokenCount(me);
   return `<div class="dock-top">
-      ${avatarHTML(me.name, ctrl.human, { me: true, cls: 'sm' })}
-      <span class="dock-name">${esc(me.name)}</span>
-      <span class="dock-sc"><b>${getPoints(me)}</b>점</span>
-      <span class="dock-pips">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</span>
-      <span class="tkcount ${tc >= 10 ? 'full' : ''}">보물 ${tc}/10</span>
+      <div class="dock-me">${avatarHTML(me.name, ctrl.human, { me: true, cls: 'sm' })}
+        <span class="dock-sc"><b>${getPoints(me)}</b><span class="tkcount ${tc >= 10 ? 'full' : ''}">10개 중 ${tc}</span></span></div>
+      <div class="mytokens">${tokensHTML(ctrl)}</div>
     </div>
-    <div class="mytokens">${tokensHTML(ctrl)}</div>
     ${actionBarHTML(ctrl)}`;
 }
 
@@ -417,6 +406,8 @@ export function sheetHTML(ctrl) {
       <div class="paylbl">내가 낼 보물 (보너스 할인 적용)</div>
       <div class="pay ${payCls}">${payText}</div>
       ${reserveNote ? `<div class="note">${reserveNote}</div>` : ''}
+      <div class="paylbl">성장 조건</div>
+      <div class="evoinfo">${evoText(card, ctrl.cardsById)}</div>
       ${relHTML(card)}
     </div>
     <div class="btnrow col">
@@ -473,10 +464,10 @@ function beginnerTip(ctrl) {
 }
 
 export function helpHTML(ctrl, options) {
-  if (!options.beginnerHelp || !ctrl || ctrl.finished) return '';
-  const tip = beginnerTip(ctrl);
-  if (!tip) return '';
-  return `<div class="helpbanner"><span class="helptag">TIP</span><span>${tip}</span></div>`;
+  if (!ctrl || ctrl.finished) return '';
+  const msg = ctrl.isHumanTurn && ctrl.message ? ctrl.message : (options.beginnerHelp ? beginnerTip(ctrl) : '');
+  if (!msg) return '';
+  return `<div class="toast" onclick="this.remove()" role="status"><span class="helptag">TIP</span><span>${msg}</span></div>`;
 }
 
 export function dexHTML(dex, cards) {
@@ -571,7 +562,7 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
     </div>
     <div class="home-hero">
       <div class="title big">조선 스플렌더<small>K-SPLENDOR · DOT EDITION</small></div>
-      <div class="hero-av">${avatarHTML(options.avatar, 0, { me: true, cls: 'lg' })}</div>
+      <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-013', 't3-011'].map((id, i) => `<span class="hc ${i === 1 ? 'mid' : ''}"><img src="${pokeSrc(id)}" alt=""></span>`).join('')}</div>
       <p class="hero-sub">보물을 모아 21점을 먼저 채워라!</p>
     </div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
