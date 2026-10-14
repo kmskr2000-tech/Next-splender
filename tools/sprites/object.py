@@ -687,15 +687,34 @@ def egg_rays(s, cx, cy, rx, ry, a, st):
                GOLD if long_ else tone(a, 1.3))
 
 
+EGG_VAR = None
+
+
 def egg(s, m, a, dt, st):
     cx = 48
     ry = [20, 24, 28][st]
     rx = [15, 18, 21][st]
+    if EGG_VAR == "tall":
+        rx, ry = int(rx * .8), int(ry * 1.04)
+    elif EGG_VAR == "wide":
+        rx, ry = int(rx * 1.12), int(ry * .86)
     cy = 80 - ry - 1
     egg_rays(s, cx, cy, rx, ry, a, st)
     mound(s, cx, 80, rx + 4)
     blob(s, cx, cy, rx, ry, m)
     spots = [(-.35, .25, 2), (.3, .5, 2), (.1, -.2, 1), (-.1, .65, 1), (.45, .05, 1), (-.45, .6, 1)]
+    if EGG_VAR == "tall":   # zig-zag bands instead of spots
+        for yy_ in (.15, .45):
+            for xi in range(-rx + 2, rx - 1):
+                if G_(s, cx + xi, cy + ry * yy_):
+                    s.set(cx + xi, cy + ry * yy_ + (1 if (xi // 3) % 2 else 0), a)
+        spots = []
+    elif EGG_VAR == "wide":   # crack on top + dark speckles
+        for i_, (sx_, sy_) in enumerate(((-.4, .3), (.35, .45), (0, .6), (.5, .1), (-.2, .05))):
+            s.set(cx + sx_ * rx, cy + sy_ * ry, tone(m, .6))
+        for i_ in range(5):
+            s.set(cx - 3 + i_ * 1.5, cy - ry + 3 + (i_ % 2) * 2, tone(m, .5))
+        spots = []
     for sx, sy, r_ in spots[:2 + st * 2]:
         s.ell(cx + sx * rx, cy + sy * ry, r_ + .6, r_, a, flat=True)
     if st >= 1:
@@ -1053,6 +1072,8 @@ SHAPES = dict(egg=egg, lotus=lotus, rope=rope, bridge=bridge, wingrobe=wingrobe,
 
 
 def draw(p, stage, spec):
+    global EGG_VAR
+    EGG_VAR = spec.get("variant")
     s = Sprite()
     SHAPES[spec["shape"]](s, hx(p["main"]), hx(p["accent"]), hx(p["detail"]), stage)
     return s

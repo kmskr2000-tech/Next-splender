@@ -5,6 +5,9 @@ import math
 from core import Sprite, hx, tone, ramp
 
 SKIN = (246, 203, 166)
+SKINS = {"pale": (252, 222, 194), "fair": (246, 203, 166), "tan": (220, 178, 148), "dark": (176, 136, 112),
+         0: (252, 222, 194), 1: (246, 203, 166), 2: (220, 178, 148), 3: (176, 136, 112)}
+STRAW = (214, 184, 112)
 BLUSH = (238, 128, 122)
 INK = (34, 26, 36)
 HAIR = (40, 32, 46)
@@ -21,7 +24,21 @@ BODY = {  # hr, leg, torso, sw
     "elder": (11.8, 14, 17, 9.2),
 }
 SKIRT = ("hanbok_f", "celestial", "shaman")
-ROBE = ("royal", "official", "scholar", "monk")
+ROBE = ("royal", "official", "scholar", "monk", "cheolik")
+NEWHATS_COVER = ("tanggeon", "paeraengi", "jeonrip", "satgat", "samo", "yugeon")   # hide hair mass
+NEWHATS_FRINGE = ("tanggeon", "paeraengi", "jeonrip", "satgat", "samo", "yugeon", "hwarang", "geumgwan")
+NEWHATS_HAIR = ("hwagwan", "headband", "gache")   # keep long hair + fringe
+EXTRA_PROPS = ("quiver", "flower_shoes")
+ROYAL_COL = {"red": (196, 42, 50), "yellow": (232, 184, 56), "gold": (226, 176, 60), "iron": (120, 128, 146),
+             "navy": (52, 66, 104), "black": (40, 38, 48), "green": (58, 110, 84), "brown": (122, 84, 56), "silver": (176, 184, 198)}
+
+
+def col_of(v):
+    if v is None:
+        return None
+    if isinstance(v, str):
+        return hx(v)
+    return tuple(v)
 
 
 def blend(a, b, t):
@@ -75,18 +92,54 @@ def scales(s, x0, x1, y0, y1, col):
                 s.set(x + 3, y + 1, tone(col, .62))
 
 
+def studs(s, x0, x1, y0, y1, col):
+    """dujeong-gap: cloth armour with rows of brass rivets."""
+    for r, y in enumerate(range(int(y0) + 1, int(y1), 3)):
+        for x in range(int(x0) + 1 + (2 if r % 2 else 0), int(x1) - 1, 4):
+            if s.get(x, y) is not None:
+                s.set(x, y, (240, 212, 120)); s.set(x, y + 1, (150, 110, 50))
+        if r % 2 == 0:
+            for x in range(int(x0) + 1, int(x1) - 1):
+                if s.get(x, y + 2) is not None:
+                    s.set(x, y + 2, tone(col, .62))
+
+
 def draw(p, stage, spec):
+    global SKIN
     s = Sprite()
+    if spec.get("pal"):
+        p = {**p, **spec["pal"]}
+    SKIN = SKINS.get(spec.get("skin", "fair"), SKINS["fair"])
     m, a, dt = hx(p["main"]), hx(p["accent"]), hx(p["detail"])
     body = spec.get("body", "adult")
     sex = spec.get("sex", "m")
     hw = spec.get("headwear", "none")
     of = spec.get("outfit", "hanbok")
-    props = list(spec.get("props", []))[:2]
+    saek = of == "saekdong"
+    if saek:
+        of = "hanbok"
+    props_all = list(spec.get("props", []))
+    props = [q for q in props_all if q not in EXTRA_PROPS][:2]
     beard = spec.get("beard", False)
+    mustache = spec.get("mustache", "none")
+    brows_st = spec.get("brows")
+    expr = spec.get("expression")
+    blush_on = spec.get("blush", True)
+    hatc = col_of(spec.get("hat_color"))
+    sashc = col_of(spec.get("sash")) or dt
+    cloak = spec.get("cloak")
+    armor_style = spec.get("armor_style", "scale")
+    if of == "royal" and spec.get("royal_color") in ROYAL_COL:
+        m = ROYAL_COL[spec["royal_color"]]
+    if of == "armor" and spec.get("armor_color"):
+        m = col_of(ROYAL_COL.get(spec["armor_color"], spec["armor_color"]))
     elder = body == "elder"
     k = [0.86, 0.93, 1.0][stage]
     hr0, leg0, tor0, sw0 = BODY[body]
+    bshape = spec.get("body_shape", "normal")
+    leg0 *= {"tall": 1.14, "stout": .92}.get(bshape, 1.0)
+    tor0 *= {"tall": 1.12, "stout": .95}.get(bshape, 1.0)
+    sw0 *= {"slim": .84, "stout": 1.24}.get(bshape, 1.0)
     hr = hr0 * k ** .5
     leg, tor, sw = leg0 * k, tor0 * k, sw0 * k * (0.93 if sex == "f" else 1.04)
     u = hr / 12.0
@@ -96,7 +149,7 @@ def draw(p, stage, spec):
     hip = gy - leg
     sh = hip - tor
     cy = sh - hr * 0.80
-    hair = WHITEHAIR if elder else HAIR
+    hair = col_of(spec.get("hair_color")) or (WHITEHAIR if elder else HAIR)
     kind = "hanbok_f" if (of == "hanbok" and sex == "f") else of
     skirt = kind in SKIRT
     robe = of in ROBE
@@ -110,6 +163,18 @@ def draw(p, stage, spec):
             s.set(cx + math.cos(ang) * (hr + 10), cy - 2 + math.sin(ang) * (hr + 10), hc)
     if of == "armor" and stage >= 1:   # cape
         poly(s, [(cx - sw, sh + 2), (cx + sw, sh + 2), (cx + sw + 9 + stage * 3, gy - 8), (cx - sw - 9 - stage * 3, gy - 8)], tone(dt, 1.0) if sum(dt) > 150 else dt)
+    if "quiver" in props_all:
+        s.tube([(cx - sw * .1, hip - 2), (cx - sw - 2, sh + 1)], [3.4, 3.0], (120, 78, 48))
+        for i_, dx_ in enumerate((-1.8, 0, 1.8)):
+            bx_, by0_ = cx - sw - 2 + dx_, sh + 1
+            s.line(bx_, by0_, bx_ - 1, by0_ - 8 - i_, (232, 222, 190))
+            s.tri([(bx_ - 3, by0_ - 6 - i_), (bx_, by0_ - 6 - i_), (bx_ - 1.5, by0_ - 11 - i_)], (214, 56, 60))
+        s.line(cx - sw * .1 - 2, hip - 4, cx - sw - 4, sh + 3, (210, 170, 80))
+    if cloak == "jangot":
+        jc = col_of(spec.get("cloak_color")) or (74, 150, 98)
+        poly(s, [(cx - hr * 1.05, cy - hr * .2), (cx + hr * 1.05, cy - hr * .2), (cx + sw + 5, hip + 2), (cx - sw - 5, hip + 2)], jc)
+        s.ell(cx, cy - 1, hr + 3.2, hr + 2.4, jc)
+        s.line(cx - sw - 4, hip + 1, cx + sw + 4, hip + 1, tone(jc, .62))
     if of == "celestial":
         for side in (-1, 1):
             for n_, (ph, col) in enumerate(((0, tone(a, 1.15)), (1, tone(m, 1.2)))):
@@ -127,10 +192,13 @@ def draw(p, stage, spec):
     # ---------------- lower garment & feet ----------------
     shoe = {"hanbok": CREAM, "shaman": CREAM, "celestial": CREAM, "monk": (200, 196, 190),
             "peasant": (206, 172, 104), "armor": (70, 60, 74)}.get(of, (44, 36, 52))
+    flowershoe = "flower_shoes" in props_all or spec.get("shoes") == "flower"
+    if flowershoe:
+        shoe = (234, 82, 112)
     cuff = a
     if skirt:
         hy0 = sh + tor * (0.36 if kind == "hanbok_f" else 0.40)
-        hw_b = sw * (1.7 if of != "celestial" else 1.8)
+        hw_b = sw * (1.7 if of != "celestial" else 1.8) * (1.12 if bshape == "stout" else 1.0)
         hem = gy - 3
         skc = m if kind != "shaman" else m
         pts = [(cx - sw * .7, hy0), (cx + sw * .7, hy0), (cx + hw_b, hem), (cx + hw_b * .5, hem + 1.3), (cx, hem + 1.7), (cx - hw_b * .5, hem + 1.3), (cx - hw_b, hem)]
@@ -141,9 +209,9 @@ def draw(p, stage, spec):
             s.line(cx - hw_b + 1, hem - 1, cx + hw_b - 1, hem - 1, a)
     elif robe:
         hem = gy - 3
-        hw_b = sw * (1.35 if of != "monk" else 1.3)
+        hw_b = sw * (1.55 if of == "cheolik" else 1.35 if of != "monk" else 1.3)
         pts = [(cx - sw * .92, sh + 3), (cx + sw * .92, sh + 3), (cx + hw_b, hem), (cx + hw_b * .5, hem + 1.2), (cx, hem + 1.5), (cx - hw_b * .5, hem + 1.2), (cx - hw_b, hem)]
-        base = {"royal": m, "official": m, "scholar": m, "monk": m}[of]
+        base = m
         poly(s, pts, base)
         if stage >= 1 and of != "monk":
             s.line(cx - hw_b + 1, hem - 1, cx + hw_b - 1, hem - 1, a)
@@ -167,14 +235,17 @@ def draw(p, stage, spec):
                 s.ell(xx, y1 - 1, sw * .36, 1.5, dt, flat=True)  # daenim band
         if of == "armor":   # tasset
             poly(s, [(cx - sw * .9, hip - 5), (cx + sw * .9, hip - 5), (cx + sw * 1.2, hip + leg * .5), (cx - sw * 1.2, hip + leg * .5)], m)
-            scales(s, cx - sw * 1.2, cx + sw * 1.2, hip - 5, hip + leg * .5, m)
+            (studs if armor_style == "dujeong" else scales)(s, cx - sw * 1.2, cx + sw * 1.2, hip - 5, hip + leg * .5, m)
             s.line(cx - sw * 1.2, hip + leg * .5, cx + sw * 1.2, hip + leg * .5, a)
     for lx in (-1, 1):
         fx = cx + lx * (sw * .5 if not skirt else sw * .55)
         sh_h = 2.0 if of in ("royal", "official", "scholar", "armor") else 1.7
         s.ell(fx + lx * .5, gy - 1.6, 3.6 * k ** .5, sh_h + .4, shoe)
-        if of in ("hanbok", "shaman", "celestial", "monk"):
+        if of in ("hanbok", "shaman", "celestial", "monk") or flowershoe:
             s.tri([(fx + lx * 2.5, gy - 2), (fx + lx * 5.2, gy - 4.5), (fx + lx * 4, gy - 1)], shoe)
+        if flowershoe:
+            s.ell(fx + lx * 1.2, gy - 2.6, 1.3, 1.3, (255, 224, 96), flat=True)
+            s.set(fx + lx * 4.6, gy - 3.6, (255, 255, 255))
         if of == "armor":
             s.set(fx, gy - 4, a)
 
@@ -242,7 +313,7 @@ def draw(p, stage, spec):
     if of == "armor":
         shoulder(m)
         poly(s, [(cx - sw, sh + 4), (cx + sw, sh + 4), (cx + sw * .85, hip - 2), (cx - sw * .85, hip - 2)], m)
-        scales(s, cx - sw, cx + sw, sh + 4, hip - 2, m)
+        (studs if armor_style == "dujeong" else scales)(s, cx - sw, cx + sw, sh + 4, hip - 2, m)
         s.line(cx - sw * .88, hip - 3, cx + sw * .88, hip - 3, a, 2)     # belt
         s.ell(cx, hip - 3, 2.6, 2.2, tone(a, 1.3), gloss=True)
         # collar guard
@@ -295,12 +366,22 @@ def draw(p, stage, spec):
             # V collar black trim + knotted belt
             s.line(cx - 4.5, sh + 1, cx + 1, sh + 13, dt, 2)
             s.line(cx + 4.5, sh + 1, cx - 1, sh + 13, dt, 2)
-            s.line(cx - sw, by + 2, cx + sw, by + 2, dt, 2)
-            s.ell(cx + 1, by + 2, 2.2, 2.2, dt, flat=True)
-            s.line(cx + 1, by + 3, cx + 4, by + 12, dt, 2)
-            s.line(cx + 1, by + 3, cx - 2, by + 11, dt, 2)
+            s.line(cx - sw, by + 2, cx + sw, by + 2, sashc, 2)
+            s.ell(cx + 1, by + 2, 2.2, 2.2, sashc, flat=True)
+            s.line(cx + 1, by + 3, cx + 4, by + 12, sashc, 2)
+            s.line(cx + 1, by + 3, cx - 2, by + 11, sashc, 2)
             if stage >= 1:
                 s.line(cx - sw * 1.3, hem - 3, cx + sw * 1.3, hem - 3, tone(dt, 1.2))
+        elif of == "cheolik":
+            s.ell(cx, sh + 1.8, 4.6, 2.8, tone(a, 1.1))
+            s.ell(cx, sh + 2.6, 3.0, 1.7, SKIN)
+            s.line(cx - 4, sh + 1, cx + 2, sh + 11, tone(m, .7), 2)
+            for i in range(-4, 5):   # waist pleats
+                s.line(cx + i * hw_b * .2, by + 6, cx + i * hw_b * .27, hem - 2, tone(m, .72))
+            s.line(cx - sw, by + 3, cx + sw, by + 3, a, 3)
+            s.ell(cx, by + 3, 2.6, 2.4, tone(GOLD, 1.0), gloss=True)
+            if stage >= 1:
+                s.line(cx - sw * .9, sh + 3, cx + sw * .8, by + 3, tone(a, 1.25))
         elif of == "monk":
             # kasaya diagonal patchwork
             pts = [(cx - sw * .9, sh + 1), (cx - sw * .1, sh + 1), (cx + sw * 1.1, hip + 4), (cx + sw * .9, hem - 4), (cx + sw * .0, hem - 4), (cx - sw * .9, hip + 6)]
@@ -326,17 +407,18 @@ def draw(p, stage, spec):
         s.line(cx - sw * .88, sh + tor * .44, cx + sw * .88, sh + tor * .44, (60, 100, 190), 2)
 
     # ---------------- arms / hands / props ----------------
-    modes = {"book": "front", "scroll": "front", "brush": "front", "fan": "front", "flute": "front"}
+    modes = {"book": "front", "scroll": "front", "brush": "front", "fan": "front", "flute": "front",
+             "brush_scroll": "front", "geomungo": "front"}
     slots = [(1, props[0])] if props else []
     if len(props) > 1:
         slots.append((-1, props[1]))
     used = {sd: nm for sd, nm in slots}
     sleevec = {"hanbok_f": a, "hanbok": m, "royal": m, "official": m, "scholar": m, "monk": m,
-               "armor": tone(m, .95), "peasant": torc, "celestial": blend(a, CREAM, .35), "shaman": CREAM}[kind if kind in ("hanbok_f",) else of if of != "hanbok" else "hanbok"] if True else m
+               "armor": tone(m, .95), "peasant": torc, "cheolik": tone(a, .9), "celestial": blend(a, CREAM, .35), "shaman": CREAM}[kind if kind in ("hanbok_f",) else of if of != "hanbok" else "hanbok"] if True else m
     if kind == "shaman":
         sleevec = CREAM
     wide = of in ("royal", "official", "scholar", "monk", "celestial", "shaman") or kind == "hanbok_f"
-    r1 = (5.2 if of in ("scholar", "monk", "official", "royal") else 4.3 if wide else 2.9) * (k ** .5) * (0.85 if body == "child" else 1)
+    r1 = (5.2 if of in ("scholar", "monk", "official", "royal") else 3.3 if of == "cheolik" else 4.3 if wide else 2.9) * (k ** .5) * (0.85 if body == "child" else 1)
     r0 = 3.1 * k ** .5
     hands = {}
     for sd in (-1, 1):
@@ -350,7 +432,7 @@ def draw(p, stage, spec):
         shp = (cx + sd * (sw - .6), sh + 4.2)
         ex, ey = hxp, hyp - (2.5 if wide else 1)
         ctr = (cx + sd * (sw + 1.5), sh + 4.2 + (ey - shp[1]) * .5)
-        if kind == "shaman":
+        if kind == "shaman" or saek:
             cols = [(220, 70, 70), (244, 200, 70), (70, 120, 210), (240, 240, 240), (80, 170, 100)]
             for i in range(5):
                 t0, t1 = i / 5, (i + 1) / 5
@@ -360,7 +442,7 @@ def draw(p, stage, spec):
         else:
             s.tube([shp, ctr, (ex, ey)], [r0, (r0 + r1) / 2, r1], sleevec)
         if stage >= 1 or of in ("royal", "official", "monk"):
-            if of in ("royal", "official", "armor", "hanbok", "celestial") or kind == "hanbok_f":
+            if of in ("royal", "official", "armor", "hanbok", "celestial", "cheolik") or kind == "hanbok_f":
                 s.ell(ex, ey - .5, r1 * .95, r1 * .5, a if of != "hanbok" or sex == "f" else tone(a, 1.0), flat=True)
         if of == "armor":
             s.ell(ex, ey - .5, r1 * 1.0, r1 * .6, a, flat=True)
@@ -466,6 +548,115 @@ def draw(p, stage, spec):
                         l = (xx + yy) < 0
                         s.set(mcx + xx, mcy + yy, (255, 246, 190) if l else (240, 214, 120))
             s.set(mcx + 6, mcy - 6, (255, 255, 255)); s.set(mcx + 7, mcy - 5, (255, 255, 255))
+        elif nm == "hwando":
+            pts_ = [(P(t)[0] + sd * ((t - 3) ** 2) * .013, P(t)[1]) for t in range(3, 28)]
+            for i_ in range(len(pts_) - 1):
+                s.line(*pts_[i_], *pts_[i_ + 1], (214, 222, 234), 2)
+                s.set(pts_[i_][0] - sd, pts_[i_][1], (150, 160, 180))
+            gx_, gy_ = P(2)
+            s.ell(gx_, gy_, 3.4, 1.5, (210, 170, 70))
+            hx2, hy2 = P(-5)
+            s.line(gx_, gy_, hx2, hy2, (74, 44, 40), 2)
+            s.ell(hx2, hy2 + 1, 1.8, 1.8, (210, 170, 70), flat=True)
+        elif nm == "sword_long":
+            x0, y0 = P(2); x1, y1 = P(40)
+            s.line(x0, y0, x1, y1, (222, 230, 242), 3)
+            s.line(x0 + 1, y0, x1 + 1, y1, (150, 160, 180), 1)
+            s.tri([(x1 - 1.5, y1), (x1 + 2.5, y1), (x1 + .5, y1 - 5)], (230, 236, 246))
+            gx_, gy_ = P(1)
+            s.line(gx_ - 4, gy_, gx_ + 4, gy_, (60, 70, 110), 2)
+            hx2, hy2 = P(-7)
+            s.line(gx_, gy_, hx2, hy2, (60, 70, 110), 2)
+            s.ell(hx2, hy2 + 1, 1.8, 1.8, (210, 170, 70), flat=True)
+        elif nm == "staff":
+            x0, y0 = P(-10); x1, y1 = P(42)
+            s.line(x0, y0, x1, y1, tone(WOOD, .9), 2)
+            s.line(x1, y1, x1 + sd * 3, y1 - 2, tone(WOOD, .9), 2)
+            s.line(x1 + sd * 3, y1 - 2, x1 + sd * 4.5, y1 + 2, tone(WOOD, .9), 2)
+            s.line(x1 + sd * 4.5, y1 + 2, x1 + sd * 2, y1 + 4, tone(WOOD, .9), 2)
+            s.line(x1, y1 + 9, x1 - sd * 3, y1 + 15, a)
+            s.ell(x1 - sd * 3, y1 + 16, 1.3, 1.3, a, flat=True)
+        elif nm == "banner":
+            x0, y0 = P(-14); x1, y1 = P(54)
+            s.line(x0, y0, x1, y1, WOOD, 2)
+            s.ell(x1, y1 - 2, 1.8, 1.8, GOLD, gloss=True)
+            fw, fh = 16, 19
+            poly(s, [(x1 + sd * 1, y1), (x1 + sd * fw, y1 + 1.5), (x1 + sd * (fw - 4), y1 + fh * .5), (x1 + sd * fw, y1 + fh - 1.5), (x1 + sd * 1, y1 + fh)], m)
+            s.ell(x1 + sd * 7, y1 + fh * .5, 3.8, 3.8, a, flat=True)
+            s.ell(x1 + sd * 7, y1 + fh * .5, 1.9, 1.9, dt, flat=True)
+            s.line(x1 + sd * 1, y1 + 2, x1 + sd * (fw - 1), y1 + 3, a)
+        elif nm == "kite":
+            kx_, ky_ = hxp + sd * 8, hyp - 38 * kk
+            s.line(hxp, hyp - 2, kx_, ky_ + 9, (240, 240, 228))
+            poly(s, [(kx_, ky_ - 9), (kx_ + 6.5, ky_), (kx_, ky_ + 9), (kx_ - 6.5, ky_)], m)
+            poly(s, [(kx_, ky_ - 9), (kx_, ky_ + 9), (kx_ - 6.5, ky_)], a, flat=True)
+            s.line(kx_ - 6, ky_, kx_ + 6, ky_, dt); s.line(kx_, ky_ - 8, kx_, ky_ + 8, dt)
+            for i_ in range(1, 8):
+                s.set(kx_ + math.sin(i_ * 1.3) * 1.5, ky_ + 9 + i_, (230, 70, 70) if i_ % 2 else (250, 240, 220))
+        elif nm == "drum":
+            dx_, dy_ = hxp - sd * 7, hyp - 4
+            s.ell(dx_, dy_, 7.4, 6.6, (172, 60, 50))
+            s.ell(dx_, dy_, 5.2, 4.8, (246, 232, 200), flat=True)
+            for i_ in range(14):
+                ang = i_ / 14 * math.tau
+                s.set(dx_ + math.cos(ang) * 6.0, dy_ + math.sin(ang) * 5.4, (242, 204, 96))
+            for yy in range(-2, 3):
+                for xx in range(-2, 3):
+                    if xx * xx + yy * yy <= 5:
+                        s.set(dx_ + xx, dy_ + yy, (60, 100, 200) if yy > 0 else (214, 60, 60))
+            s.line(hxp, hyp - 2, hxp + sd * 4, hyp - 14, WOOD)
+            s.ell(hxp + sd * 4, hyp - 14, 1.5, 1.5, (246, 232, 200), flat=True)
+        elif nm == "geomungo":
+            bx0, by0 = hxp - 26, hyp + 9
+            bx1, by1 = hxp + 15, hyp - 1
+            s.line(bx0, by0, bx1, by1, (92, 56, 40), 4)
+            s.line(bx0, by0 - 2, bx1, by1 - 2, (150, 100, 68), 1)
+            for t_ in (.1, .22, .34):
+                s.set(bx0 + (bx1 - bx0) * t_, by0 + (by1 - by0) * t_ - 3, (226, 70, 60))
+            s.line(bx0 + 3, by0 - 3, bx1 - 1, by1 - 3, (246, 240, 226))
+            s.line(bx0 + 4, by0 - 4, bx1, by1 - 4, (200, 190, 170))
+            s.ell(bx1 - 2, by1 - 2, 1.6, 1.6, (226, 70, 60), flat=True)
+        elif nm == "herb_basket":
+            bx_, by_ = hxp + sd * 1, hyp + 8 * kk
+            s.line(hxp, hyp, bx_ - 5, by_ - 1, (150, 110, 60)); s.line(hxp, hyp, bx_ + 5, by_ - 1, (150, 110, 60))
+            for i_, dx_ in enumerate((-3.5, -1.2, 1.2, 3.5)):
+                s.line(bx_ + dx_, by_ - 1, bx_ + dx_ * 1.4, by_ - 6 - (i_ % 2) * 2, (80, 164, 84))
+                s.ell(bx_ + dx_ * 1.4, by_ - 7 - (i_ % 2) * 2, 1.6, 1.2, (110, 190, 100), flat=True)
+            s.set(bx_ + 1, by_ - 3, (214, 62, 70)); s.set(bx_ - 2, by_ - 4, (214, 62, 70))
+            s.ell(bx_, by_ + 2, 6.4, 4.6, (196, 152, 88))
+            for yy in (0, 2, 4):
+                s.line(bx_ - 5, by_ + yy, bx_ + 5, by_ + yy, tone((196, 152, 88), .7))
+        elif nm == "gourd_big":
+            gx_, gyc = hxp + sd * 3, gy - 10
+            s.ell(gx_, gyc + 3.4, 8.8, 7.6, (232, 204, 128))
+            s.ell(gx_, gyc - 5.4, 5.6, 5.2, (240, 214, 142))
+            s.line(gx_, gyc - 10, gx_ + sd * 2, gyc - 13, (90, 140, 70), 2)
+            s.ell(gx_ + sd * 5, gyc - 12, 3.2, 1.6, (96, 166, 84), rot=-sd * .5)
+        elif nm == "astrolabe":
+            c0, c1 = P(21)
+            r_ = 8.5 * kk
+            s.line(hxp, hyp - 1, c0, c1 + r_, (170, 120, 60), 2)
+            for q in range(0, 360, 3):
+                an = math.radians(q)
+                s.set(c0 + math.cos(an) * r_, c1 + math.sin(an) * r_, (216, 172, 74))
+                s.set(c0 + math.cos(an) * r_ * .4, c1 + math.sin(an) * r_, (240, 206, 110))
+                s.set(c0 + math.cos(an) * r_, c1 + math.sin(an) * r_ * .3, (190, 140, 60))
+                ax_, ay_ = math.cos(an) * r_ * .85, math.sin(an) * r_ * .85 * .5
+                s.set(c0 + ax_ * .8 - ay_ * .6, c1 + ax_ * .6 + ay_ * .8, (240, 206, 110))
+            s.ell(c0, c1, 2.0, 2.0, (120, 200, 240), gloss=True)
+        elif nm == "sundial":
+            bx_, by_ = hxp + sd * 3, gy - 11
+            for lx_ in (-1, 1):
+                s.line(bx_ + lx_ * 3, by_ + 3, bx_ + lx_ * 4.5, gy - 2, (110, 86, 64), 2)
+            s.ell(bx_, by_, 7.8, 4.8, (190, 140, 70))
+            s.ell(bx_, by_ - 1.2, 6.0, 3.0, (238, 220, 172), flat=True)
+            for q in range(5):
+                s.line(bx_, by_ - 1, bx_ - 5 + q * 2.5, by_ - 2.4 + abs(q - 2) * .9, (150, 110, 60))
+            s.line(bx_, by_ - 1, bx_ + sd * 1.5, by_ - 9, (56, 56, 68), 1)
+            s.tri([(bx_ - 1, by_ - 1), (bx_ + 2, by_ - 1), (bx_ + sd * 1.5, by_ - 9)], (70, 70, 84))
+        elif nm == "brush_scroll":
+            prop("scroll", sd, hxp, hyp)
+            prop("brush", sd, hxp + sd * 4, hyp - 1)
         elif nm == "sun":
             mcx, mcy = hxp + sd * 2, hyp - 14
             for i in range(8):
@@ -482,7 +673,7 @@ def draw(p, stage, spec):
     # ---------------- head ----------------
     long_back = hw in ("braid",) or (sex == "f" and hw in ("none", "jokduri", "crown", "binyeo", "horns"))
     # hair back mass
-    if hw not in ("monk", "helmet", "gat"):
+    if hw not in ("monk", "helmet", "gat") + NEWHATS_COVER:
         s.ell(cx, cy, hr + (.2 if body == 'child' else .6), hr * .99, hair)
     if hw == "helmet":
         for side in (-1, 1):
@@ -497,7 +688,7 @@ def draw(p, stage, spec):
     else:
         s.ell(cx, cy + hr * .13, hr - .6, hr * .86, SKIN)
     # fringe
-    if hw in ("none", "braid", "binyeo", "jokduri", "horns", "crown") and not (hw == "crown" and sex == "m"):
+    if hw in ("none", "braid", "binyeo", "jokduri", "horns", "crown") + NEWHATS_HAIR and not (hw == "crown" and sex == "m"):
         fy = cy - hr * .66
         s.ell(cx, fy, hr * .94, hr * (.34 if body == 'child' else .42), hair)
         if body == "child" or sex == "f":
@@ -505,29 +696,71 @@ def draw(p, stage, spec):
                 s.ell(cx + dx * hr, fy + hr * .2, hr * .28, hr * .2, hair)
             # center part
             s.set(cx, cy - hr * .66, tone(hair, 1.4))
-    elif hw in ("topknot", "crown", "gat"):
+    elif hw in ("topknot", "crown", "gat") + NEWHATS_FRINGE:
         s.ell(cx, cy - hr * .72, hr * .88, hr * .34, hair)
+    if cloak == "jangot":
+        jc = col_of(spec.get("cloak_color")) or (74, 150, 98)
+        s.ell(cx, cy - hr * .78, hr + 2.4, hr * .4, jc)
+        for side in (-1, 1):
+            s.ell(cx + side * (hr + .2), cy + hr * .18, 2.6, hr * .8, jc)
+        s.line(cx - hr * .9, cy - hr * .4, cx + hr * .9, cy - hr * .4, tone(jc, 1.25))
     # face features
     es = 3 if body == "child" else 2
     eyec = (60, 38, 40)
     ey = cy + hr * (.18 if body == "child" else .1)
     ex_ = hr * (.5 if body == "child" else .46)
-    s.eye(cx - ex_ - es / 2 + .5, ey, es, iris=eyec)
-    s.eye(cx + ex_ - es / 2 + .5, ey, es, iris=eyec)
-    bc = hair if not elder else (200, 200, 208)
-    if body != "child":
-        for side in (-1, 1):
-            xb = cx + side * ex_ - 1
-            s.line(xb - 1, ey - 3, xb + 2, ey - (3 if sex == "f" else 4) + (0 if side < 0 else 0), bc)
-    for side in (-1, 1):
-        s.ell(cx + side * hr * .62, ey + es + 2.2, 2.2, 1.3, BLUSH, flat=True)
     my = cy + hr * .62
-    s.line(cx - 1, my, cx + 1, my, (150, 60, 60))
-    s.set(cx - 2, my - 1, (150, 60, 60)); s.set(cx + 2, my - 1, (150, 60, 60))
-    if body == "elder":
-        s.set(cx - ex_ - 2, ey + 4, tone(SKIN, .8)); s.set(cx + ex_ + 2, ey + 4, tone(SKIN, .8))
-    if sex == "f" and body != "child":
-        s.set(cx - ex_ - 1, ey - 1, INK); s.set(cx + ex_ + 1, ey - 1, INK)
+
+    def feats():
+        s.eye(cx - ex_ - es / 2 + .5, ey, es, iris=eyec)
+        s.eye(cx + ex_ - es / 2 + .5, ey, es, iris=eyec)
+        bc = hair if not elder else (200, 200, 208)
+        if brows_st:
+            bc = tone(bc, 1.0) if not elder else bc
+        if body != "child":
+            for side in (-1, 1):
+                xb = cx + side * ex_ - 1
+                if brows_st is None:
+                    s.line(xb - 1, ey - 3, xb + 2, ey - (3 if sex == "f" else 4), bc)
+                    continue
+                bx = cx + side * ex_ + .5
+                if brows_st == "thick":
+                    s.line(bx - 2.5, ey - 4, bx + 2.5, ey - 4, bc, 2)
+                elif brows_st == "thin":
+                    s.line(bx - 2, ey - 4, bx + 2.5, ey - 5, tone(bc, 1.5) if not elder else bc)
+                elif brows_st == "angry":   # inner end low
+                    y_in, y_out = ey - 3, ey - 6
+                    xi, xo = bx - side * 2.5, bx + side * 2.5
+                    s.line(xi, y_in, xo, y_out, bc, 2)
+                elif brows_st == "kind":    # soft arch, outer end low
+                    s.line(bx - side * 2.5, ey - 5, bx, ey - 6, bc)
+                    s.line(bx, ey - 6, bx + side * 3, ey - 4, bc)
+        if blush_on:
+            for side in (-1, 1):
+                s.ell(cx + side * hr * .62, ey + es + 2.2, 2.2, 1.3, BLUSH, flat=True)
+        mc = (150, 60, 60)
+        if expr == "serious":
+            s.line(cx - 2, my, cx + 2, my, (120, 54, 56))
+        elif expr == "fierce":
+            s.line(cx - 2, my, cx + 2, my, (110, 40, 44))
+            s.set(cx - 3, my + 1, (110, 40, 44)); s.set(cx + 3, my + 1, (110, 40, 44))
+            s.set(cx - 1, my + 1, (255, 255, 255)); s.set(cx + 1, my + 1, (255, 255, 255))
+        elif expr == "smile":
+            s.line(cx - 2, my, cx + 2, my, mc)
+            s.set(cx - 3, my - 1, mc); s.set(cx + 3, my - 1, mc)
+            s.set(cx - 1, my + 1, (200, 90, 90)); s.set(cx, my + 1, (200, 90, 90)); s.set(cx + 1, my + 1, (200, 90, 90))
+        else:
+            s.line(cx - 1, my, cx + 1, my, mc)
+            s.set(cx - 2, my - 1, mc); s.set(cx + 2, my - 1, mc)
+        if body == "elder":
+            s.set(cx - ex_ - 2, ey + 4, tone(SKIN, .8)); s.set(cx + ex_ + 2, ey + 4, tone(SKIN, .8))
+        if sex == "f" and body != "child":
+            s.set(cx - ex_ - 1, ey - 1, INK); s.set(cx + ex_ + 1, ey - 1, INK)
+
+    feats()
+    if spec.get("wen"):
+        s.ell(cx - hr * .72, cy + hr * .5, 3.6, 3.4, tone(SKIN, .96))
+        s.set(cx - hr * .72 - 1, cy + hr * .5 - 1, tone(SKIN, 1.3))
 
     # headwear
     top = cy - hr
@@ -558,11 +791,12 @@ def draw(p, stage, spec):
     elif hw == "gat":
         by = cy - hr * .56
         # crown
-        poly(s, [(cx - 6 * u, by), (cx + 6 * u, by), (cx + 5.3 * u, by - 12 * u), (cx - 5.3 * u, by - 12 * u)], (52, 44, 58))
-        s.ell(cx, by - 12 * u, 5.3 * u, 2.0 * u, (74, 64, 82))
+        gc = hatc or (52, 44, 58)
+        poly(s, [(cx - 6 * u, by), (cx + 6 * u, by), (cx + 5.3 * u, by - 12 * u), (cx - 5.3 * u, by - 12 * u)], gc)
+        s.ell(cx, by - 12 * u, 5.3 * u, 2.0 * u, tone(gc, 1.4) if hatc else (74, 64, 82))
         s.line(cx - 5.5 * u, by - 2, cx + 5.5 * u, by - 2, tone(dt, 1.0) if False else (74, 64, 82))
         # brim
-        s.ell(cx, by, hr + 8 * u, 4.4 * u, (46, 38, 52))
+        s.ell(cx, by, hr + 8 * u, 4.4 * u, tone(gc, .88) if hatc else (46, 38, 52))
         s.line(cx - hr - 5 * u, by - 1, cx - hr * .5, by - 3, (86, 76, 96))
         # cords
         cord = tone(a, 1.0)
@@ -573,7 +807,8 @@ def draw(p, stage, spec):
             s.line(*pts[0], *pts[1], cord); s.line(*pts[1], *pts[2], cord)
     elif hw == "crown":
         if sex == "m":
-            if stage == 2:   # myeollyugwan
+            cs_ = spec.get("crown_style")
+            if (stage == 2 and cs_ != "ikseon") or cs_ == "myeollyu":   # myeollyugwan
                 s.ell(cx, top + 1, hr * .72, hr * .48, (36, 30, 44))
                 s.line(cx - hr * .5, top - 1, cx + hr * .5, top - 1, tone(a, 1.0))
                 bx0, bx1 = cx - hr * 1.0, cx + hr * 1.0
@@ -622,11 +857,7 @@ def draw(p, stage, spec):
         s.ell(cx, top - 5 * u - 2, 1.6, 4.0, (214, 50, 56))
         s.line(cx, top - 6 * u, cx + 3, top - 1, (214, 50, 56), 1)
         s.set(cx - 3, cy - hr * .6, (240, 244, 250)); s.set(cx - 4, cy - hr * .6 + 1, (240, 244, 250))
-        # re-draw eyes
-        s.eye(cx - ex_ - es / 2 + .5, ey, es, iris=eyec); s.eye(cx + ex_ - es / 2 + .5, ey, es, iris=eyec)
-        for side in (-1, 1):
-            s.ell(cx + side * hr * .62, ey + es + 2.2, 2.2, 1.3, BLUSH, flat=True)
-        s.line(cx - 1, my, cx + 1, my, (150, 60, 60))
+        feats()
     elif hw == "jokduri":
         by = cy - hr * .88
         pts = [(cx - 8 * u, by), (cx + 8 * u, by), (cx + 6 * u, by - 9 * u), (cx - 6 * u, by - 9 * u)]
@@ -650,12 +881,161 @@ def draw(p, stage, spec):
         for dx in (-3, 0, 3):
             s.tri([(cx + dx - 2, top + 3), (cx + dx, top - 2), (cx + dx + 2, top + 3)], hair)
 
-    # beard
-    if beard:
+    elif hw == "tanggeon":
+        hc = hatc or (44, 38, 52)
+        by = cy - hr * .5
+        poly(s, [(cx - hr * .82, by), (cx + hr * .82, by), (cx + hr * .72, by - 5 * u), (cx - hr * .72, by - 5 * u)], hc)
+        s.ell(cx, by - 7.4 * u, hr * .58, 3.6 * u, tone(hc, 1.5))
+        s.line(cx - hr * .82, by - 1, cx + hr * .82, by - 1, tone(hc, 2.0))
+        for i in range(-2, 3):
+            s.set(cx + i * 2.6 * u, by - 7 * u, tone(hc, .7))
+    elif hw == "yugeon":
+        hc = hatc or (30, 34, 54)
+        by = cy - hr * .42
+        poly(s, [(cx - hr * .86, by), (cx + hr * .86, by), (cx + hr * .72, by - 11 * u), (cx - hr * .72, by - 11 * u)], hc)
+        s.ell(cx, by - 11 * u, hr * .72, 2.0 * u, tone(hc, 1.5))
+        for fx_ in (-.3, .3):
+            s.line(cx + fx_ * hr, by - 1, cx + fx_ * hr * .9, by - 12 * u, tone(hc, 1.7))
+        s.line(cx - hr * .86, by - 1, cx + hr * .86, by - 1, tone(hc, 2.2))
+        for side in (-1, 1):
+            s.tri([(cx + side * hr * .86, by), (cx + side * hr * 1.02, by + 9 * u), (cx + side * hr * .62, by + 1)], hc)
+            s.line(cx + side * hr * .98, by + 8 * u, cx + side * hr * 1.1, by + 12 * u, a)
+    elif hw == "paeraengi":
+        hc = hatc or STRAW
+        by = cy - hr * .6
+        s.ell(cx, by, hr + 7 * u, 3.4 * u, tone(hc, .92))
+        s.ell(cx, by - 3 * u, hr * .72, 5.6 * u, hc)
+        for i in range(-3, 4):
+            s.line(cx + i * 2.6 * u, by - 7 * u, cx + i * 4.4 * u, by + 1, tone(hc, .72))
+        s.line(cx - hr - 5 * u, by + 1, cx + hr + 5 * u, by + 1, tone(hc, .72))
+        for side in (-1, 1):
+            s.line(cx + side * (hr + 3 * u), by + 2, cx + side * hr * 1.0, cy + hr * .5, (200, 60, 60))
+    elif hw == "jeonrip":
+        hc = hatc or (58, 48, 70)
+        by = cy - hr * .5
+        s.ell(cx, by, hr + 5 * u, 3.2 * u, tone(hc, .9))
+        s.ell(cx, by - 5 * u, hr * .84, 7 * u, hc)
+        s.line(cx - hr * .8, by - 2, cx + hr * .8, by - 2, a, 2)
+        s.line(cx + hr * .1, by - 11 * u, cx + hr * .1, by - 16 * u, (214, 50, 56), 2)
+        s.ell(cx + hr * .1, by - 11 * u, 2.4 * u, 4.2 * u, (214, 50, 56))
+        s.set(cx - hr * .4, by - 8 * u, tone(hc, 2.0)); s.set(cx - hr * .5, by - 7 * u, tone(hc, 2.0))
+        for side in (-1, 1):
+            s.line(cx + side * (hr + 3 * u), by + 2, cx + side * hr * 1.02, cy + hr * .5, (210, 56, 60))
+    elif hw == "samo":
+        hc = hatc or (30, 26, 36)
+        by = cy - hr * .5
+        s.ell(cx, by - 6 * u, hr * .8, 8 * u, hc)
+        s.line(cx - hr * .78, by - 1, cx + hr * .78, by - 1, tone(a, 1.1), 2)
+        for side in (-1, 1):
+            s.tube([(cx + side * hr * .7, by - 6 * u), (cx + side * hr * 1.4, by - 5 * u), (cx + side * hr * 2.0, by - 7 * u)], [1.7, 1.5, 1.8], hc)
+            s.set(cx + side * hr * 1.4, by - 6 * u, tone(hc, 2.2))
+        s.set(cx - hr * .3, by - 10 * u, tone(hc, 2.4)); s.set(cx - hr * .4, by - 9 * u, tone(hc, 2.4))
+    elif hw == "satgat":
+        hc = hatc or (212, 178, 100)
+        by = cy - hr * .5
+        poly(s, [(cx, top - 10 * u), (cx - hr - 12 * u, by + 1), (cx + hr + 12 * u, by + 1)], hc)
+        s.ell(cx, by + 1, hr + 12 * u, 3.0 * u, tone(hc, .86))
+        for i in range(-4, 5):
+            s.line(cx + i * .4 * u, top - 9 * u, cx + i * (hr + 10 * u) / 4.6, by, tone(hc, .72))
+        s.line(cx - hr - 8 * u, by + 2, cx + hr + 8 * u, by + 2, tone(hc, .6))
+        for side in (-1, 1):
+            s.line(cx + side * (hr + 8 * u), by + 3, cx + side * hr * 1.0, cy + hr * .55, tone(a, 1.0))
+    elif hw == "hwagwan":
+        by = cy - hr * .66
+        s.ell(cx, top - 1.2 * u, hr * .68, 5.2 * u, (232, 96, 128))
+        s.line(cx - hr * .9, by, cx + hr * .9, by, tone(a, 1.15), 2)
+        for i, (xx, fc) in enumerate(((-.62, (250, 200, 60)), (-.2, (255, 250, 240)), (.2, (255, 130, 160)), (.62, (250, 200, 60)))):
+            s.ell(cx + xx * hr, top - 1.2 * u - (1 - abs(xx)) * 3 * u, 2.4, 2.4, fc, gloss=True)
+        for side in (-1, 1):
+            s.line(cx + side * hr * .92, by + 1, cx + side * hr * .92, by + 8, tone(a, 1.1))
+            s.ell(cx + side * hr * .92, by + 9.5, 1.5, 1.8, (90, 200, 170), flat=True)
+    elif hw == "headband":
+        bcol = hatc or (250, 248, 240)
+        yb = cy - hr * .52
+        for dy_ in (0, 1, 2):
+            s.line(cx - hr * .96, yb + 1 + dy_, cx - hr * .5, yb + dy_, bcol)
+            s.line(cx - hr * .5, yb + dy_, cx + hr * .5, yb + dy_, bcol)
+            s.line(cx + hr * .5, yb + dy_, cx + hr * .96, yb + 1 + dy_, bcol)
+        s.ell(cx + hr * .92, yb + 1, 2.2, 2.2, bcol, flat=True)
+        s.line(cx + hr * .92, yb + 2, cx + hr * 1.35, yb + 8, bcol, 2)
+        s.line(cx + hr * .9, yb + 2, cx + hr * .75, yb + 9, bcol, 2)
+        s.set(cx - hr * .1, yb, (214, 60, 60)); s.set(cx + hr * .1, yb, (214, 60, 60))
+    elif hw == "gache":
+        s.ell(cx, top - 2.4 * u, hr * 1.34, 7.4 * u, hair)
+        s.ell(cx, top - 6 * u, hr * .8, 4.4 * u, hair)
+        for i in range(-3, 4):
+            s.set(cx + i * hr * .3, top - 5 * u - abs(i) * -.4 + 1, tone(hair, 2.0))
+            s.set(cx + i * hr * .36, top - 1.5 * u, tone(hair, 1.8))
+        s.line(cx - hr * 1.5, top - 1.5 * u, cx + hr * 1.5, top - 1.5 * u, tone(a, 1.15), 2)
+        for side in (-1, 1):
+            s.ell(cx + side * hr * 1.5, top - 1.5 * u, 1.9, 1.9, (220, 50, 70), gloss=True)
+            s.line(cx + side * hr * 1.35, top + 4 * u, cx + side * hr * 1.35, top + 14 * u, (226, 60, 70))
+        s.ell(cx, top - 8 * u, 3.0 * u, 2.4 * u, (255, 140, 170), gloss=True)
+        s.set(cx, top - 8 * u, (255, 230, 120))
+    elif hw == "hwarang":
+        s.ell(cx, top - 1.2, 3.2 * u, 3.0 * u, hair)
+        by = cy - hr * .56
+        s.line(cx - hr * .92, by, cx + hr * .92, by, tone(a, 1.1), 2)
+        s.ell(cx, by, 1.8, 1.8, (220, 50, 70), gloss=True)
+        for ang, ln, fc in ((-.62, 8.5, (240, 240, 246)), (.62, 8.5, (240, 240, 246)), (-.25, 11, (220, 62, 72)), (.25, 11, (220, 62, 72)), (0, 13, (250, 250, 250))):
+            bx_, by_ = cx + math.sin(ang) * hr * .5, by - 2
+            s.ell(bx_ + math.sin(ang) * ln * u * .5, by_ - math.cos(ang) * ln * u * .5, 1.9 * u, ln * u * .5, fc, rot=ang)
+    elif hw == "geumgwan":
+        by = cy - hr * .64
+        gcol = tone(GOLD, 1.0)
+        poly(s, [(cx - hr * .94, by + 1), (cx + hr * .94, by + 1), (cx + hr * .94, by - 4), (cx - hr * .94, by - 4)], gcol)
+        if spec.get("crown_style") == "flame":
+            for i in range(-3, 4):
+                hh = 15 - abs(i) * 3.2
+                xx = cx + i * hr * .3
+                s.tri([(xx - 2.8, by - 4), (xx, by - 4 - hh * u), (xx + 2.8, by - 4)], gcol)
+                s.set(xx, by - 4 - hh * u, (255, 244, 170))
+            s.ell(cx, by - 1, 2.0, 2.0, (220, 50, 70), gloss=True)
+        for xo, hh in (() if spec.get("crown_style") == "flame" else ((-.62, 9), (0, 13), (.62, 9))):
+            xx = cx + xo * hr
+            s.line(xx, by - 4, xx, by - 4 - hh * u, gcol, 2)
+            for j in (1, 2):
+                yy = by - 4 - hh * u * (.3 + .3 * j)
+                s.line(xx, yy, xx - 3, yy - 2, gcol); s.line(xx, yy, xx + 3, yy - 2, gcol)
+                s.set(xx - 3, yy - 2, (90, 200, 170)); s.set(xx + 3, yy - 2, (90, 200, 170))
+            s.ell(xx, by - 5 - hh * u, 1.5, 1.5, (255, 240, 150), gloss=True)
+        for side in (-1, 1):
+            s.tube([(cx + side * hr * .94, by - 3), (cx + side * hr * 1.15, by + 2), (cx + side * hr * 1.0, by + 9)], [1.1, 1.0, 1.4], gcol)
+            s.ell(cx + side * hr * 1.0, by + 10, 1.6, 2.0, (90, 200, 170), flat=True)
+        for i in range(-3, 4):
+            s.set(cx + i * hr * .28, by - 1, (255, 244, 170))
+
+    # beard & mustache
+    bst = "long_legacy" if beard is True else (beard or None)
+    if bst or mustache != "none":
         bcol = WHITEHAIR if elder else hair
-        s.ell(cx - 2.6, my - 1.6, 2.8, 1.2, bcol)
-        s.ell(cx + 2.6, my - 1.6, 2.8, 1.2, bcol)
+        if mustache == "long_white" or (bst == "long" and elder):
+            bcol_m = WHITEHAIR
+        else:
+            bcol_m = bcol
         L = 3 + tor * .3 * (1 + stage * .3)
-        s.tube([(cx, my + 2.2), (cx, my + 2.2 + L * .5), (cx + .3, my + 2.2 + L)], [2.6, 2.3, .9], bcol)
+        if bst in ("long_legacy", "full", "long") and mustache == "none":
+            mustache = "full"
+        if mustache == "thin":
+            for side in (-1, 1):
+                s.line(cx + side * .5, my - 2, cx + side * 4.5, my - 1, bcol_m)
+                s.set(cx + side * 5, my, bcol_m)
+        elif mustache == "full":
+            s.ell(cx - 2.6, my - 1.6, 2.8, 1.2, bcol_m)
+            s.ell(cx + 2.6, my - 1.6, 2.8, 1.2, bcol_m)
+        elif mustache == "long_white":
+            for side in (-1, 1):
+                s.tube([(cx + side * 1.2, my - 2), (cx + side * 4.6, my - .5), (cx + side * 6.2, my + 6)], [1.6, 1.4, .8], WHITEHAIR)
+        if bst == "goatee":
+            s.tube([(cx, my + 2), (cx, my + 4), (cx + .3, my + 6.5)], [1.9, 1.5, .8], bcol)
+        elif bst == "long_legacy":
+            s.tube([(cx, my + 2.2), (cx, my + 2.2 + L * .5), (cx + .3, my + 2.2 + L)], [2.6, 2.3, .9], bcol)
+        elif bst == "full":
+            for side in (-1, 1):
+                s.ell(cx + side * hr * .62, cy + hr * .52, 2.6, 4.2, bcol)
+            s.ell(cx, my + 3, hr * .55, 3.0, bcol)
+            s.tube([(cx, my + 3), (cx, my + 3 + L * .4), (cx + .3, my + 3 + L * .8)], [2.8, 2.4, 1.0], bcol)
+        elif bst == "long":
+            s.tube([(cx, my + 2.2), (cx, my + 2.2 + L * 1.0), (cx + .3, my + 2.2 + L * 2.1)], [2.8, 2.5, .9], bcol)
         s.line(cx - 1, my + .5, cx + 1, my + .5, (150, 60, 60))
     return s
