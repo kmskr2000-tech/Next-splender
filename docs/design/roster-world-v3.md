@@ -1,3 +1,5 @@
+> **상태: 폐기 (D15)** — 컨셉은 한국 문화만 유지. 참고용 보관.
+
 # 로스터 v3: 세계 설화 확장 (roster-world-v3)
 
 상태: 초안, 디렉터 승인 대기. `roster-korea.json/.md`, `roster-swap-v2.md` 미수정.
