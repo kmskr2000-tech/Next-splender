@@ -42,6 +42,7 @@ def draw(p, stage, feats):
     else:
         ctrl = [(20, 28), (22, 44), (40, 50), (60, 47), (76, 54), (75, 66), (58, 70), (40, 69), (27, 76), (30, 86), (50, 89), (72, 87), (88, 79), (91, 66)]
         r0, r1, hr = 5.8, 1.4, 12.5
+        ctrl = [(36 + (x - 20) * .74, y) for x, y in ctrl]   # keep head + whiskers inside the 96px canvas
     path = spline(ctrl, 7)
     n = len(path)
 
@@ -144,7 +145,7 @@ def draw(p, stage, feats):
     s.eye(hx0 - hr * .45, ey, es, iris=iris)
     s.eye(hx0 + hr * .3, ey, es, iris=iris)
     if "whiskers" in feats or stage == 2:
-        wl = [0, 14, 22][stage]
+        wl = [0, 14, 18][stage]
         for oy, dy in ((.38, 4), (.5, 10)):
             x0, y0 = hx0 - hr * .95, hy0 + hr * oy
             curve(s, [(x0, y0), (x0 - wl * .4, y0 - 2 + dy * .2), (x0 - wl * .75, y0 + dy * .6), (x0 - wl, y0 + dy)],

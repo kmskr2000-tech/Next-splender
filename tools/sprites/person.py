@@ -5,7 +5,7 @@ import math
 from core import Sprite, hx, tone, ramp
 
 SKIN = (246, 203, 166)
-SKINS = {"pale": (252, 222, 194), "fair": (246, 203, 166), "tan": (220, 178, 148), "dark": (176, 136, 112),
+SKINS = {"red": (212, 86, 74), "pale": (252, 222, 194), "fair": (246, 203, 166), "tan": (220, 178, 148), "dark": (176, 136, 112),
          0: (252, 222, 194), 1: (246, 203, 166), 2: (220, 178, 148), 3: (176, 136, 112)}
 STRAW = (214, 184, 112)
 BLUSH = (238, 128, 122)
@@ -109,7 +109,8 @@ def draw(p, stage, spec):
     s = Sprite()
     if spec.get("pal"):
         p = {**p, **spec["pal"]}
-    SKIN = SKINS.get(spec.get("skin", "fair"), SKINS["fair"])
+    _sk = spec.get("skin", "fair")
+    SKIN = SKINS.get(_sk) or col_of(_sk) or SKINS["fair"]
     m, a, dt = hx(p["main"]), hx(p["accent"]), hx(p["detail"])
     body = spec.get("body", "adult")
     sex = spec.get("sex", "m")
@@ -407,7 +408,7 @@ def draw(p, stage, spec):
         s.line(cx - sw * .88, sh + tor * .44, cx + sw * .88, sh + tor * .44, (60, 100, 190), 2)
 
     # ---------------- arms / hands / props ----------------
-    modes = {"book": "front", "scroll": "front", "brush": "front", "fan": "front", "flute": "front",
+    modes = {"mapae": "front", "cloud_scroll": "front", "book": "front", "scroll": "front", "brush": "front", "fan": "front", "flute": "front",
              "brush_scroll": "front", "geomungo": "front"}
     slots = [(1, props[0])] if props else []
     if len(props) > 1:
@@ -657,6 +658,70 @@ def draw(p, stage, spec):
         elif nm == "brush_scroll":
             prop("scroll", sd, hxp, hyp)
             prop("brush", sd, hxp + sd * 4, hyp - 1)
+        elif nm == "mapae":   # bronze horse-tablet disc, held out front
+            mx_, my_ = hxp + sd * 1.5, hyp - 8
+            s.ell(mx_, my_, 7.4, 7.4, (122, 82, 40))
+            s.ell(mx_, my_, 6.2, 6.2, (206, 150, 70), gloss=True)
+            s.ell(mx_, my_, 4.6, 4.6, (226, 176, 90), flat=True)
+            for q_ in range(16):
+                an_ = q_ / 16 * math.tau
+                s.set(mx_ + math.cos(an_) * 6.6, my_ + math.sin(an_) * 6.6, (255, 226, 140))
+            for dx_, dy_ in ((-2, 1), (-1, 0), (0, 0), (1, 0), (2, 1), (-2, -1), (2, -1), (0, 2)):   # tiny horses
+                s.set(mx_ + dx_, my_ + dy_, (110, 70, 34))
+            s.set(mx_ - 3, my_ - 5, (255, 244, 190)); s.set(mx_ - 4, my_ - 4, (255, 244, 190))
+            s.line(mx_, my_ - 7, mx_, my_ - 9, (196, 52, 52), 1)
+            s.ell(mx_, my_ - 9.6, 1.5, 1.2, (196, 52, 52), flat=True)
+        elif nm == "flower_branch":
+            x0, y0 = P(-2); x1, y1 = P(24)
+            s.line(x0, y0, x1, y1, (118, 80, 52), 2)
+            xm, ym = P(14)
+            s.line(xm, ym, xm - sd * 7, ym - 6, (118, 80, 52), 1)
+            for (fx_, fy_, rr_) in ((x1, y1 - 2, 3.0), (xm - sd * 7, ym - 7, 2.6), (xm + sd * 3, ym - 2, 2.4)):
+                for ang_ in range(5):
+                    aa_ = ang_ / 5 * math.tau + .4
+                    s.ell(fx_ + math.cos(aa_) * rr_ * .7, fy_ + math.sin(aa_) * rr_ * .7, rr_ * .62, rr_ * .62, (255, 176, 204))
+                s.ell(fx_, fy_, 1.2, 1.2, (250, 220, 90), flat=True)
+            s.ell(xm + sd * 4, ym + 4, 3.0, 1.3, (84, 164, 92), rot=sd * .6)
+        elif nm == "shaman_bell":   # chilseong bangul: brass handle with three bells
+            x0, y0 = P(-3); x1, y1 = P(12)
+            s.line(x0, y0, x1, y1, (214, 170, 70), 2)
+            s.line(x0, y0 + 1, x0, y0 + 5, (214, 60, 60), 1)
+            for dxb, dyb in ((-7, 2.5), (0, -4), (7, 2.5)):
+                bxx, byy = x1 + dxb, y1 + dyb - 3
+                s.line(x1, y1, bxx, byy + 2, (214, 170, 70), 1)
+                s.ell(bxx, byy, 3.6, 3.6, (240, 200, 84), gloss=True); s.set(bxx - 1, byy - 1, (255, 246, 190))
+                s.set(bxx, byy + 2.6, (120, 80, 30))
+        elif nm == "swing_rope":   # twin ropes up to a branch; both hands grip
+            lx_ = cx - (sw + 4.5)
+            rx_ = hxp
+            for xx_ in (lx_, rx_):
+                s.line(xx_, 11, xx_, hyp - 1, (176, 124, 70), 1)
+                s.line(xx_ + 1, 11, xx_ + 1, hyp - 1, (214, 168, 104), 1)
+            s.line(lx_ - 4, 10, rx_ + 4, 10, (112, 78, 48), 3)
+            s.ell(lx_, hyp - 1, 2.2, 2.2, (196, 60, 70), flat=True)
+            s.ell(rx_, hyp - 1, 2.2, 2.2, (196, 60, 70), flat=True)
+            for yy_ in range(int(gy + 1), int(gy + 4)):
+                s.line(lx_ - 3, yy_, rx_ + 3, yy_, (150, 100, 56) if yy_ == gy + 1 else (110, 74, 44))
+        elif nm == "cloud_scroll":   # talisman scroll wreathed in a doryeol cloud
+            sx_, sy_ = hxp + sd * 1, hyp - 4
+            s.line(sx_ - 5, sy_ - 8, sx_ + 5, sy_ - 8, WOOD, 2)
+            s.line(sx_ - 5, sy_ + 5, sx_ + 5, sy_ + 5, WOOD, 2)
+            for yy_ in range(int(sy_ - 7), int(sy_ + 5)):
+                s.line(sx_ - 4, yy_, sx_ + 4, yy_, (248, 226, 120))
+            for yy_ in (-5, -2, 1, 4 - 0):
+                s.line(sx_ - 2, sy_ + yy_, sx_ + 2, sy_ + yy_ + (1 if yy_ % 2 else 0), (200, 50, 50))
+            for (dx_, dy_, rx2, ry2) in ((sd * 7, 3, 5.5, 3.4), (sd * 11, -2, 4.4, 3.0), (sd * 3, 8, 6.0, 3.0), (sd * 8, 9, 4.0, 2.4)):
+                s.ell(sx_ + dx_, sy_ + dy_, rx2, ry2, (236, 232, 252))
+                s.ell(sx_ + dx_, sy_ + dy_ + ry2 * .35, rx2 * .8, ry2 * .6, (196, 196, 230), flat=True)
+        elif nm == "mirror":   # round bronze hand mirror
+            x0, y0 = P(-2); x1, y1 = P(14)
+            s.line(x0, y0, x1, y1, (150, 100, 56), 2)
+            mx_, my_ = P(21)
+            s.ell(mx_, my_, 7.4, 7.4, (150, 98, 44))
+            s.ell(mx_, my_, 5.6, 5.6, (150, 214, 236), gloss=True)
+            s.line(mx_ - 3, my_ - 2, mx_ - 1, my_ - 4, (255, 255, 255), 1)
+            s.set(mx_ + 2, my_ + 2, (255, 255, 255))
+            s.set(mx_, my_ + 7.4, (196, 60, 70)); s.set(mx_, my_ + 8.4, (196, 60, 70))
         elif nm == "sun":
             mcx, mcy = hxp + sd * 2, hyp - 14
             for i in range(8):
@@ -681,7 +746,12 @@ def draw(p, stage, spec):
         s.ell(cx, cy + hr * .88, hr * .7, 2.6, (150, 158, 172))
     # ears
     for side in (-1, 1):
-        s.ell(cx + side * (hr - .3), cy + hr * .22, 2.0, 2.6, SKIN)
+        if spec.get("big_ears"):
+            s.ell(cx + side * (hr + .6), cy + hr * .2, 3.0, 4.4, SKIN)
+            s.ell(cx + side * (hr + .9), cy + hr * .2, 1.3, 2.6, tone(SKIN, .82), flat=True)
+            s.ell(cx + side * (hr + .9), cy + hr * .2 + 5.2, 1.5, 1.5, GOLD, gloss=True)
+        else:
+            s.ell(cx + side * (hr - .3), cy + hr * .22, 2.0, 2.6, SKIN)
     # face
     if hw == "monk":
         s.ell(cx, cy, hr, hr * .98, SKIN)
@@ -745,6 +815,11 @@ def draw(p, stage, spec):
             s.line(cx - 2, my, cx + 2, my, (110, 40, 44))
             s.set(cx - 3, my + 1, (110, 40, 44)); s.set(cx + 3, my + 1, (110, 40, 44))
             s.set(cx - 1, my + 1, (255, 255, 255)); s.set(cx + 1, my + 1, (255, 255, 255))
+        elif expr == "smirk":   # one-sided sly grin, raised brow
+            s.line(cx - 2, my + .5, cx + 1, my, mc)
+            s.set(cx + 2, my - 1, mc); s.set(cx + 3, my - 2, mc)
+            s.line(cx + ex_ - 2, ey - 6, cx + ex_ + 3, ey - 8, bc, 1)
+            s.set(cx + 4, my - 1, tone(SKIN, .78)); s.set(cx + 4, my, tone(SKIN, .78))
         elif expr == "smile":
             s.line(cx - 2, my, cx + 2, my, mc)
             s.set(cx - 3, my - 1, mc); s.set(cx + 3, my - 1, mc)
@@ -930,6 +1005,14 @@ def draw(p, stage, spec):
             s.tube([(cx + side * hr * .7, by - 6 * u), (cx + side * hr * 1.4, by - 5 * u), (cx + side * hr * 2.0, by - 7 * u)], [1.7, 1.5, 1.8], hc)
             s.set(cx + side * hr * 1.4, by - 6 * u, tone(hc, 2.2))
         s.set(cx - hr * .3, by - 10 * u, tone(hc, 2.4)); s.set(cx - hr * .4, by - 9 * u, tone(hc, 2.4))
+        if spec.get("hat_flower"):   # peony tucked at the hat side (Cheoyong)
+            px_, py_ = cx + hr * .72, by - 3.5 * u
+            for ang_ in range(6):
+                aa_ = ang_ / 6 * math.tau
+                s.ell(px_ + math.cos(aa_) * 3.2, py_ + math.sin(aa_) * 2.8, 2.7, 2.4, (240, 96, 136) if ang_ % 2 else (252, 150, 176))
+            s.ell(px_, py_, 2.6, 2.4, (255, 190, 206))
+            s.ell(px_, py_, 1.2, 1.1, (250, 214, 90), flat=True)
+            s.ell(px_ + 5, py_ + 3.4, 3.0, 1.4, (70, 150, 84), rot=.4)
     elif hw == "satgat":
         hc = hatc or (212, 178, 100)
         by = cy - hr * .5

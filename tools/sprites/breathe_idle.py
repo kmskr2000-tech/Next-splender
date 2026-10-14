@@ -55,6 +55,7 @@ for p in sorted(glob.glob(f"{REPO}/assets/creatures/*.png")):
         frames, _ = bake_breathe_sequence([still] * n, CFG)
     except SystemExit as e:  # sprite-gen refuses shapes it cannot breathe safely
         failed.append((cid, str(e)[:80]))
+        save_gif([still], f"{REPO}/assets/creatures/anim/{cid}.gif")  # static, never stale
         continue
     save_gif([f.convert("RGBA") for f in frames], f"{REPO}/assets/creatures/anim/{cid}.gif")
     ok += 1

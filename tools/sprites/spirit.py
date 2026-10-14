@@ -6,7 +6,8 @@ from core import Sprite, hx, tone
 def draw(p, stage, feats):
     s = Sprite()
     m, a, dt = hx(p["main"]), hx(p["accent"]), hx(p["detail"])
-    k = [0.66, 0.84, 1.0][stage]
+    shade = "shade" in feats   # dueoksini: looming smoke-bodied yaksha, glowing slit eyes
+    k = [0.66, 0.84, 1.0][stage] if not shade else [0.9, 0.9, 1.0][stage]
     gx, gy = 44, 80
     belly = tone(m, 1.3)
     skin = m
@@ -30,8 +31,15 @@ def draw(p, stage, feats):
 
     # legs & feet
     for lx in (-6, 6):
+        if shade:
+            break
         s.ell(gx + lx * k, gy - 6 * k, 5 * k, 7 * k, tone(skin, .9))
         s.ell(gx + lx * k + (lx / 6), gy - 2, 5.5 * k, 3 * k, skin)
+    if shade:   # smoke instead of legs: layered wisps trailing to the sides
+        for i_, (dx_, dy_, rx_, ry_) in enumerate(((0, -5, 14, 7), (-10, -2, 9, 5), (11, -3, 8, 4.5), (-4, 0, 10, 3.6), (6, 1, 7, 3))):
+            s.ell(gx + dx_ * k, gy + dy_ * k, rx_ * k, ry_ * k, tone(skin, .78 + .1 * (i_ % 2)))
+        for i_ in range(7):
+            s.set(gx - 15 + i_ * 4.5, gy + 2 - (i_ % 3), tone(a, 1.0))
     # body
     s.ell(gx, gy - 20 * k, 15 * k, 14 * k, skin)
     s.ell(gx - 1 * k, gy - 18 * k, 8 * k, 9 * k, belly)
@@ -51,10 +59,10 @@ def draw(p, stage, feats):
     for e in (-1, 1):
         s.tri([(hxc + e * hr * .85, hyc - 1), (hxc + e * (hr + 6), hyc - hr * .35), (hxc + e * hr * .8, hyc + hr * .45)], skin, "left")
     # horns
-    nh = 1 if stage == 0 else 2
+    nh = 1 if (stage == 0 and not shade) else 2
     for i in range(nh):
         e = 0 if nh == 1 else (-1 if i == 0 else 1)
-        hh = [5, 8, 13][stage]
+        hh = [5, 8, 13][stage] if not shade else [11, 12, 14][stage]
         x0 = hxc + e * hr * .5
         y0 = hyc - hr * .85
         if "horns" in feats or stage < 2 or True:
@@ -75,15 +83,26 @@ def draw(p, stage, feats):
             s.tri([(hxc - 8 + i * 4.5, hyc - hr * .8), (hxc - 6 + i * 4.5, hyc - hr * .8 - 5), (hxc - 4 + i * 4.5, hyc - hr * .8)], tone(a, 1.3))
     # face
     es = 3 if stage == 0 else 2
-    s.eye(hxc - hr * .55 - 1, hyc - hr * .05, es, iris=(60, 35, 30) if stage < 2 else (190, 70, 40))
-    s.eye(hxc + hr * .55 - es + 1, hyc - hr * .05, es, iris=(60, 35, 30) if stage < 2 else (190, 70, 40))
-    s.ell(hxc - hr * .72, hyc + hr * .3, 2.2, 1.4, tone((230, 120, 120), 1.0), flat=True)
-    s.ell(hxc + hr * .72, hyc + hr * .3, 2.2, 1.4, tone((230, 120, 120), 1.0), flat=True)
+    if shade:   # slanted glowing slits, scowl, no blush
+        for e in (-1, 1):
+            ex0, ey0 = hxc + e * hr * .5, hyc - hr * .02
+            s.line(ex0 - e * 4, ey0 - 3, ex0 + e * 3, ey0 - 1, ink, 2)   # heavy brow
+            s.ell(ex0, ey0 + 1, 3.0, 1.6, tone(a, 1.5), rot=e * -.3)
+            s.ell(ex0, ey0 + 1, 1.2, 1.4, (255, 255, 255), flat=True)
+    else:
+        s.eye(hxc - hr * .55 - 1, hyc - hr * .05, es, iris=(60, 35, 30) if stage < 2 else (190, 70, 40))
+        s.eye(hxc + hr * .55 - es + 1, hyc - hr * .05, es, iris=(60, 35, 30) if stage < 2 else (190, 70, 40))
+        s.ell(hxc - hr * .72, hyc + hr * .3, 2.2, 1.4, tone((230, 120, 120), 1.0), flat=True)
+        s.ell(hxc + hr * .72, hyc + hr * .3, 2.2, 1.4, tone((230, 120, 120), 1.0), flat=True)
     # mouth + tusks
     my = hyc + hr * .5
     s.line(hxc - 3, my, hxc + 3, my, ink)
     s.set(hxc - 3, my - 1, ink); s.set(hxc + 3, my - 1, ink)
-    if stage > 0 or "beak" in feats:
+    if shade:   # fanged grimace
+        s.line(hxc - 5, my - 1, hxc + 5, my - 1, ink, 2)
+        for tx in (-4, -1, 2):
+            s.tri([(hxc + tx - 1, my), (hxc + tx + .5, my + 4), (hxc + tx + 2, my)], (240, 240, 232))
+    elif stage > 0 or "beak" in feats:
         s.tri([(hxc - 4, my), (hxc - 3, my + 4), (hxc - 2, my)], (250, 248, 235))
         s.tri([(hxc + 2, my), (hxc + 3, my + 4), (hxc + 4, my)], (250, 248, 235))
     if "beard" in feats or stage == 2:
@@ -93,7 +112,7 @@ def draw(p, stage, feats):
             s.ell(hxc + dx * hr * .8, my + 3 + bh * .5 + (i == 1) * 2, hr * .3, bh * .8, bc)
     if "gem" in feats and stage > 0:
         s.ell(hxc, hyc - hr * .45, 1.8, 1.8, (110, 200, 240), gloss=True)
-    if "aura" in feats and stage > 0:
+    if "aura" in feats and (stage > 0 or shade):
         for i in range(18):
             ang = i / 18 * math.tau
             r = 40 + (i % 2) * 3

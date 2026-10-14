@@ -37,6 +37,9 @@ def draw(p, stage, feats):
     # head
     hr = [12, 12.5, 13.5][stage] * k / [0.62, 0.82, 1.0][stage] * [0.62, 0.82, 1.0][stage]
     hr = [11.5, 11.5, 12.5][stage] * (k ** .55)
+    fierce = "fierce" in feats   # baekho: bolder stripes, wang mark, fangs, scowl
+    if fierce:
+        hr *= 1.12
     hxc, hyc = gx - 16 * k, gy - 30 * k
     if "mane" in feats:
         for i in range(10):
@@ -53,6 +56,23 @@ def draw(p, stage, feats):
     es = 3 if stage == 0 else 2
     s.eye(hxc - hr * .55, ey, es, iris=(200, 130, 30) if stage else (50, 35, 40))
     s.eye(hxc + hr * .25, ey, es, iris=(200, 130, 30) if stage else (50, 35, 40))
+    if fierce:
+        s.line(hxc - hr * .78, ey - 3, hxc - hr * .25, ey - 1.5, dt, 2)
+        s.line(hxc + hr * .5, ey - 3, hxc + hr * .05, ey - 1.5, dt, 2)
+        for fx in (-.35, .25):
+            s.tri([(hxc + fx * hr - 1.5, hyc + hr * .62), (hxc + fx * hr + 1.5, hyc + hr * .62), (hxc + fx * hr, hyc + hr * .62 + 4)], (252, 250, 240))
+        wx, wy = hxc - 1, hyc - hr * .86   # wang (king) mark on the forehead
+        for q in (0, 2, 4):
+            s.line(wx - 3, wy + q * .9, wx + 3, wy + q * .9, dt, 1)
+        s.line(wx, wy, wx, wy + 3.6, dt, 1)
+        for q in (-1, 1):   # cheek ruff stripes
+            s.line(hxc + q * hr * .95, hyc + hr * .5, hxc + q * hr * .62, hyc + hr * .52, dt, 1)
+        for lx in (-10, 4):   # leg stripes
+            s.line(gx + lx * k - 3, gy - 7 * k, gx + lx * k + 3, gy - 7 * k, dt, 1)
+            s.line(gx + lx * k - 3, gy - 4 * k, gx + lx * k + 3, gy - 4 * k, dt, 1)
+        for i in range(4):   # extra back stripes
+            x = gx - 5 * k + i * 6 * k
+            s.line(x + 3 * k, gy - 24 * k, x + 4 * k, gy - 19 * k, dt, 1)
     if "stripes" in feats:
         s.line(hxc - 1, hyc - hr * .85, hxc - 1, hyc - hr * .5, dt)
         s.line(hxc + 2, hyc - hr * .8, hxc + 2, hyc - hr * .55, dt)

@@ -25,14 +25,14 @@ def draw(p, stage, feats):
     # tail feathers (behind): fan from rump, droop with stage
     n = max(_nf(feats, "multi_tail"), 0)
     nt = [3, 3, 5][stage] if not n else min(max(n, 3), 7 if stage == 2 else 4)
-    L = [19, 27, 38][stage] * k
+    L = [19, 27, 38][stage] * k * (0.84 if (n and stage == 2) else 1)
     bx, by = gx + 12 * k, gy - 26 * k
     cols = [dt, a, m, a, dt, a, m]
     order = sorted(range(nt), key=lambda i: -abs(i - (nt - 1) / 2))
     for i in order:
         t = i - (nt - 1) / 2
-        ang = (.3 if stage == 2 else .2) + t * (.26 if stage == 2 else .3)
-        ln = L * (1 - abs(t) * .08)
+        ang = (.3 if stage == 2 else .2) + t * ((.42 if n else .26) if stage == 2 else .3)
+        ln = L * (1 - abs(t) * (.08 if not n else .0)) * (1.12 if (n and stage == 2 and abs(t) < .6) else 1)
         x1, y1 = bx + math.cos(ang * .4) * ln * .55, by + math.sin(ang * .4) * ln * .55
         x2, y2 = bx + math.cos(ang) * ln, by + math.sin(ang) * ln
         c = cols[i % 7] if stage > 0 else (dt if i % 2 == 0 else a)
