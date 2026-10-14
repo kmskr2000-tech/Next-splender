@@ -191,7 +191,7 @@ export function recordResult(storage, result, now = Date.now()) {
 // ---------- Challenges ----------
 // { v:1, completed: { [id]: timestamp } }
 
-export const CHAL_KEY = 'pks-chal-v1';
+export const CHAL_KEY = 'ohsp-chal-v1';
 
 export function loadChal(storage) {
   const o = readJSON(storage, CHAL_KEY);

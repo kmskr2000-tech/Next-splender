@@ -8,7 +8,7 @@
 //   send / sendTo / broadcast / onmessage / onjoin / onleave / close
 //
 // RTDB layout:
-//   pkmspl-rooms/{CODE}/
+//   ohsp-rooms/{CODE}/
 //     created: timestamp
 //     hostName: string
 //     guests/{guestId}/: { name, joinedAt }
