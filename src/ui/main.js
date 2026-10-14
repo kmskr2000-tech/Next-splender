@@ -43,51 +43,55 @@ showInAppGuide();
 
 import { CARDS } from '../data/cards.js?v=1791962003';
 import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1791962003';
-import { CHALLENGES, challengeWon } from '../data/challenges.js?v=1791962003';
-import { createController } from './controller.js?v=1791962003';
+import { createController, TRAINERS } from './controller.js?v=1791962003';
 import * as V from './view.js?v=1791962003';
 import { NetSession } from '../net/session.js?v=1791962003';
-import { listRooms, watchRooms } from '../net/fireroom.js?v=1791962003';
-import { getBonuses, getPoints, bonusList } from '../core/engine.js?v=1791962003';
+import { listRooms } from '../net/fireroom.js?v=1791962003';
+import { getPoints, bonusList } from '../core/engine.js?v=1791962003';
 import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1791962003';
 import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1791962003';
-import { browserStorage, loadDex, loadSave, saveGame, clearSave, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, loadRecords, recordResult, victoryScore, loadChal, completeChal } from '../storage/store.js?v=1791962003';
+import { browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult } from '../storage/store.js?v=1791962003';
+
+// App flow: home (lobby) -> matching queue / friend room -> in-game -> result -> home.
+// There is no solo mode: bots exist only as seat fillers when a queue times out.
 
 const params = new URLSearchParams(location.search);
 const AI_DELAY = params.has('fast') ? 0 : 1600; // ?fast=1 skips the pacing delay (tests)
-const AI_NAMES = ['하늘', '솔이', '바우', '달래'];
+const QUEUE_WAIT_S = params.has('fast') ? 2 : 12; // seconds before empty seats are bot-filled
+const LOCAL_TURN_LIMIT_S = 45;
+const FORCE_SIM = params.has('sim');
 
 const regions = {
-  header: ['header', V.headerHTML],
-  tutorial: ['tutorial', () => V.tutorialHTML(tutorial)],
-  help: ['help', () => V.helpHTML(ctrl, options, tutorial)],
-  chbanner: ['chbanner', () => V.challengeBannerHTML(ctrl)],
-  opponents: ['opponents', V.opponentsHTML],
+  header: ['header', () => V.headerHTML(ctrl, turnInfo())],
+  help: ['help', () => V.helpHTML(ctrl, options)],
+  rail: ['rail', V.railHTML],
   board: ['board', V.boardHTML],
   supply: ['supply', V.supplyHTML],
   me: ['me', V.meHTML],
   log: ['log', V.logHTML],
-  actionbar: ['actionbar', V.actionBarHTML],
+  actionbar: ['actionbar', V.dockHTML],
   sheet: ['sheet', V.sheetHTML],
 };
 const cache = {};
 let ctrl = null;
 let aiTimer = null;
-let net = null; // NetSession while in multiplayer menu/lobby/game
-let netNotice = ''; // one-shot notice shown on the start/net screen
-let netHelpOpen = false;
+let net = null; // NetSession while in a friend room / online queue / online game
+let queue = null; // { mode:'sim'|'net', size, isRoom, deadline, slots, starting, searching, notice }
+let netNotice = ''; // one-shot notice shown on the home/queue screen
 let dexOpen = false;
 let rulesOpen = false;
 let achvOpen = false;
-let recordsOpen = false;
-let chalOpen = false;
-let tutorial = null; // { step } — guided first-game tutorial
 let optionsOpen = false;
+let profileOpen = false;
+let joinOpen = false;
 const storage = browserStorage();
 const options = loadOptions(storage);
 setSFXEnabled(options.sfx);
+V.setMyAvatar(options.avatar);
 
 const $ = (id) => document.getElementById(id);
+const myName = () => options.playerName || '도사';
+const onlineAvailable = () => !FORCE_SIM && typeof window.firebase !== 'undefined';
 
 function setHTML(id, html) {
   if (cache[id] === html) return; // keeps animated sprites from restarting needlessly
@@ -98,8 +102,36 @@ function setHTML(id, html) {
 let lastFinished = false;
 let lastTurnPlayer = -1;
 
+// ---------- turn timer (online: from NetSession, local: tracked here) ----------
+
+const localTimer = { key: '', deadline: 0 };
+
+function turnInfo() {
+  if (!ctrl) return { remaining: 0, limit: LOCAL_TURN_LIMIT_S };
+  if (net && ctrl.mp) return { remaining: net.getTurnRemaining(), limit: Math.round((net.turnLimitMs || 45000) / 1000) };
+  const g = ctrl.game;
+  const key = `${g.turn}:${g.current}:${g.phase}`;
+  if (localTimer.key !== key) { localTimer.key = key; localTimer.deadline = Date.now() + LOCAL_TURN_LIMIT_S * 1000; }
+  return { remaining: Math.max(0, Math.ceil((localTimer.deadline - Date.now()) / 1000)), limit: LOCAL_TURN_LIMIT_S };
+}
+
+function tick() {
+  // Queue countdown / bot fill
+  if (queue) queueTick();
+  if (!ctrl || ctrl.finished) { if (queue) render(); return; }
+  const t = turnInfo();
+  const fill = $('timerfill');
+  if (fill) fill.style.width = Math.max(0, Math.min(100, (t.remaining / t.limit) * 100)) + '%';
+  const label = $('turntimer');
+  if (label) label.textContent = `⏱ ${t.remaining}초`;
+  const bar = $('timerbar');
+  if (bar) bar.classList.toggle('urgent', t.remaining <= 10);
+  // Local game: the human seat times out like online seats do.
+  if (!ctrl.mp && t.remaining <= 0 && ctrl.isHumanTurn) { ctrl.dispatch({ type: 'timeout' }); render(); }
+}
+setInterval(tick, 500);
+
 function render() {
-  checkChallenge();
   // Game end SFX (once)
   if (ctrl && ctrl.finished && !lastFinished) {
     lastFinished = true;
@@ -108,53 +140,34 @@ function render() {
   } else if (!ctrl || !ctrl.finished) {
     lastFinished = false;
   }
-  // Your-turn notification
   if (ctrl && !ctrl.finished && ctrl.isHumanTurn && lastTurnPlayer !== ctrl.game.current) {
-    // Only notify when turn actually changed to us (not on first render)
     if (lastTurnPlayer !== -1) sfx.yourTurn();
   }
-  if (ctrl) lastTurnPlayer = ctrl.game.current;
-  else lastTurnPlayer = -1;
+  lastTurnPlayer = ctrl ? ctrl.game.current : -1;
 
   if (ctrl) for (const [id, fn] of Object.values(regions)) setHTML(id, fn(ctrl));
+  else for (const [id] of Object.values(regions)) setHTML(id, '');
+
+  checkNetFail();
   let overlay;
-  if (netHelpOpen && net) {
-    overlay = V.netHelpHTML();
-  } else if (net && !ctrl) {
-    overlay = V.netHTML(net, netNotice);
-    netNotice = '';
-  } else {
-    overlay = !ctrl ? V.startHTML({ save: loadSave(storage, CARDS), dex: loadDex(storage), cards: CARDS, options, notice: netNotice }) : ctrl.finished ? V.endHTML(ctrl) : '';
-    netNotice = '';
-  }
-  if (ctrl?.challengeDone) overlay = V.challengeEndHTML(ctrl.challengeDone === 'won', ctrl.challenge);
+  if (ctrl) overlay = ctrl.finished ? V.endHTML(ctrl) : '';
+  else if (queue) overlay = V.queueHTML(queueView());
+  else { overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice }); netNotice = ''; }
   if (dexOpen) overlay = V.dexHTML(loadDex(storage), CARDS);
   else if (rulesOpen) overlay = V.rulesHTML();
   else if (achvOpen) overlay = V.achvHTML(loadAchv(storage).unlocked);
-  else if (recordsOpen) overlay = V.recordsHTML(loadRecords(storage));
-  else if (chalOpen) overlay = V.challengeListHTML(loadChal(storage).completed);
-  else if (optionsOpen) overlay = V.optionsHTML(options);
+  else if (profileOpen) overlay = V.profileHTML(options);
+  else if (joinOpen) overlay = V.joinCodeHTML(netNotice);
+  else if (optionsOpen) overlay = V.optionsHTML(options, !!ctrl && !ctrl.finished);
+  // Don't clobber a half-typed input on the home/join screens with an identical re-render.
   setHTML('overlay', overlay);
   scheduleAI();
-}
-
-// Resolves challenge win/lose. Win: goal met. Lose: turn limit hit or normal game end.
-function checkChallenge() {
-  if (!ctrl?.challenge || ctrl.challengeDone) return;
-  if (ctrl.finished) { ctrl.challengeDone = 'lost'; return; }
-  if (challengeWon(ctrl.challenge, ctrl, getPoints, bonusList)) {
-    ctrl.challengeDone = 'won';
-    completeChal(storage, ctrl.challenge.id);
-    return;
-  }
-  if (ctrl.humanTurns >= ctrl.challenge.maxTurns) ctrl.challengeDone = 'lost';
 }
 
 function scheduleAI() {
   if (aiTimer || !ctrl || ctrl.finished || ctrl.isHumanTurn) return;
   // In multiplayer, only the host acts for AI seats; guests wait for the relay.
   if (net && net.phase === 'playing' && net.role !== 'host') return;
-  // Only schedule when it's actually an AI's turn (no polling during humans' turns).
   if (!ctrl.game.players[ctrl.game.current].isAI) return;
   aiTimer = setTimeout(() => {
     aiTimer = null;
@@ -219,7 +232,7 @@ function flyBalls(snap, colors, dstEl) {
 function animateAIFromSnap(snap) {
   const ev = ctrl.lastAIEvent;
   if (!ev) return;
-  const dst = document.querySelector(`.opp[data-id="${ev.player}"]`);
+  const dst = document.querySelector(`.rail-item[data-id="${ev.player}"]`);
   if (!dst) return;
   if (ev.type === 'buy' || ev.type === 'reserve') {
     flyClone(snap.get('card:' + ev.cardId), dst);
@@ -256,189 +269,206 @@ const hooks = {
     const card = cardsById.get(cardId);
     if (card && (card.tier === 'rare' || card.tier === 'legend')) caughtLegend = true;
   },
-  onChange: () => { if (ctrl && !ctrl.finished && !ctrl.challenge) saveGame(storage, ctrl.snapshot()); },
   onEnd: (won) => {
     recordGame(storage, won);
-    if (ctrl) {
-      const me = ctrl.me;
-      const bonusColors = new Set();
-      for (const card of me.tableau) for (const b of bonusList(card)) bonusColors.add(b);
-      const ctx = {
-        won,
-        turns: ctrl.game.turn,
-        evolutions: me.evolved.length,
-        difficulty: ctrl.difficulty,
-        points: getPoints(me),
-        bonusColors,
-        caughtLegend,
-      };
-      const newly = checkAchievements(ctx, loadAchv(storage).unlocked);
-      if (newly.length) {
-        unlockAchv(storage, newly.map((a) => a.id));
-        queueAchvToasts(newly);
-      }
-      const rec = recordResult(storage, { won, points: ctx.points, turns: ctx.turns, difficulty: ctx.difficulty });
-      ctrl.lastScore = rec.score;
-      ctrl.lastBest = rec.isBest;
+    if (!ctrl) return;
+    const me = ctrl.me;
+    const bonusColors = new Set();
+    for (const card of me.tableau) for (const b of bonusList(card)) bonusColors.add(b);
+    const ctx = { won, turns: ctrl.game.turn, evolutions: me.evolved.length, difficulty: ctrl.difficulty, points: getPoints(me), bonusColors, caughtLegend };
+    const newly = checkAchievements(ctx, loadAchv(storage).unlocked);
+    if (newly.length) {
+      unlockAchv(storage, newly.map((a) => a.id));
+      queueAchvToasts(newly);
     }
-    clearSave(storage);
+    recordResult(storage, { won, points: ctx.points, turns: ctx.turns, difficulty: ctx.difficulty });
     caughtLegend = false;
   },
 };
 
-function resumeGame() {
-  const save = loadSave(storage, CARDS);
-  if (!save) return;
-  ctrl = createController({ cards: CARDS, seed: save.seed, humanName: save.humanName, aiNames: save.aiNames, resume: { game: save.game, log: save.log, difficulty: save.difficulty, aiPersonalities: save.aiPersonalities }, hooks });
-  Object.keys(cache).forEach((k) => delete cache[k]);
-  window.__ctrl = ctrl;
-  render();
-}
+// ---------- matching ----------
 
-function startTutorial() {
-  startGame('나');
-  tutorial = { step: 0 };
-  render();
-}
+function resetCache() { Object.keys(cache).forEach((k) => delete cache[k]); }
 
-function tutAdvance() {
-  if (tutorial && tutorial.step < 3) {
-    tutorial.step += 1;
-    render();
-  }
-}
-
-function startGame(humanName) {
-  const seedParam = params.get('seed');
-  const seed = seedParam !== null ? Number(seedParam) : (crypto.getRandomValues(new Uint32Array(1))[0] || 1);
-  const aiNames = AI_NAMES.filter((n) => n !== humanName).slice(0, 3);
-  clearSave(storage); // a new game replaces any saved one
-  ctrl = createController({ cards: CARDS, seed, humanName, aiNames, hooks, difficulty: options.difficulty });
-  saveGame(storage, ctrl.snapshot());
-  Object.keys(cache).forEach((k) => delete cache[k]);
+function enterGame(c) {
+  clearTimeout(aiTimer); aiTimer = null;
+  ctrl = c;
+  queue = null;
+  localTimer.key = '';
+  resetCache();
   window.__ctrl = ctrl; // debugging / automated tests
   if (options.bgm) startBGM('main');
   render();
 }
 
-function startChallenge(id) {
-  const ch = CHALLENGES.find((c) => c.id === id);
-  if (!ch) return;
-  chalOpen = false;
-  tutorial = null;
-  clearSave(storage); // challenges don't use the save slot
-  const seed = (crypto.getRandomValues(new Uint32Array(1))[0] || 1);
-  ctrl = createController({ cards: CARDS, seed, humanName: '나', aiNames: AI_NAMES.slice(0, 3), hooks, difficulty: ch.difficulty, challenge: ch });
-  ctrl.applyChallengeSetup(ch);
-  Object.keys(cache).forEach((k) => delete cache[k]);
-  window.__ctrl = ctrl;
+/** Local game with the queue's seats: me + bot seat-fillers (no standalone AI mode). */
+function startFilledGame(size) {
+  const seedParam = params.get('seed');
+  const seed = seedParam !== null ? Number(seedParam) : (crypto.getRandomValues(new Uint32Array(1))[0] || 1);
+  const bots = TRAINERS.filter((n) => n !== options.avatar).slice(0, size - 1);
+  enterGame(createController({ cards: CARDS, seed, humanName: myName(), aiNames: bots, hooks, difficulty: 'normal' }));
+}
+
+function startQueue(size) {
+  cancelQueue();
+  if (onlineAvailable()) startNetQueue(size); else startSimQueue(size, '');
+}
+
+function startSimQueue(size, notice) {
+  queue = { mode: 'sim', size, isRoom: false, deadline: Date.now() + QUEUE_WAIT_S * 1000, slots: [{ name: myName(), me: true }], starting: false, notice };
   render();
 }
 
-// ---------- multiplayer ----------
+async function startNetQueue(size) {
+  queue = { mode: 'net', size, isRoom: false, deadline: 0, searching: true, starting: false, notice: '' };
+  openNet();
+  render();
+  let target = null;
+  try {
+    const rooms = await listRooms();
+    target = rooms.find((r) => r.title === `빠른대전 ${size}인` && r.playerCount < size);
+  } catch {
+    if (queue && net) { dropNet(); startSimQueue(size, '온라인 서버에 연결할 수 없어 로컬 매칭으로 진행해요.'); }
+    return;
+  }
+  if (!queue || !net) return; // cancelled meanwhile
+  queue.searching = false;
+  if (target) net.guestJoin(myName(), target.code);
+  else net.hostCreate(myName(), `빠른대전 ${size}인`, 45000);
+}
+
+function createFriendRoom() {
+  cancelQueue();
+  queue = { mode: 'net', size: options.queueSize, isRoom: true, deadline: 0, searching: false, starting: false, notice: '' };
+  openNet();
+  net.hostCreate(myName(), '친구방', 45000);
+  render();
+}
+
+function joinFriendRoom(code) {
+  const clean = String(code || '').trim().toUpperCase();
+  if (clean.length < 4) { netNotice = '방 코드를 확인해주세요.'; return false; }
+  cancelQueue();
+  queue = { mode: 'net', size: 4, isRoom: true, deadline: 0, searching: false, starting: false, notice: '' };
+  openNet();
+  net.guestJoin(myName(), clean);
+  return true;
+}
+
+function dropNet() {
+  if (!net) return;
+  const n = net; net = null;
+  try { n.end(); } catch {}
+}
+
+function cancelQueue() {
+  queue = null;
+  dropNet();
+}
+
+// Online connection failed before reaching a lobby phase.
+function checkNetFail() {
+  if (!queue || queue.mode !== 'net' || !net || queue.searching || queue.failing) return;
+  if (!['menu', 'hostname', 'guestname', 'guestjoin'].includes(net.phase)) return;
+  queue.failing = true;
+  const isRoom = queue.isRoom;
+  const size = queue.size;
+  setTimeout(() => {
+    dropNet();
+    if (isRoom) { queue = null; netNotice = netNotice || '방에 연결하지 못했어요. 다시 시도해주세요.'; render(); }
+    else startSimQueue(size, '온라인 서버에 연결할 수 없어 로컬 매칭으로 진행해요.');
+  }, 0);
+}
+
+function queueView() {
+  const q = queue;
+  const left = q.deadline ? Math.max(0, Math.ceil((q.deadline - Date.now()) / 1000)) : null;
+  if (q.mode === 'sim') {
+    return { title: '매칭 중…', size: q.size, slots: q.slots, countdown: left, fillBots: options.fillBots, notice: q.notice, starting: q.starting };
+  }
+  const names = net?.names?.length ? net.names : [myName()];
+  const slots = names.map((name, i) => ({ name, me: net?.names?.length ? i === net.myIndex : true }));
+  return {
+    title: q.isRoom ? '친구와 방' : '매칭 중…', size: q.size, slots, countdown: left, fillBots: q.isRoom ? true : options.fillBots,
+    code: q.isRoom ? net?.shortCode : '', host: net?.role === 'host' && net.phase === 'hostlobby', isRoom: q.isRoom,
+    notice: q.notice, starting: q.starting,
+  };
+}
+
+function queueTick() {
+  const q = queue;
+  if (!q || q.starting) return;
+  const now = Date.now();
+  if (q.mode === 'sim') {
+    if (now < q.deadline) return;
+    if (!options.fillBots) { render(); return; }
+    // Fill the empty seats with bots, then enter after a short beat.
+    const bots = TRAINERS.filter((n) => n !== options.avatar).slice(0, q.size - 1);
+    q.slots = [q.slots[0], ...bots.map((name) => ({ name, bot: true }))];
+    q.starting = true;
+    render();
+    setTimeout(() => { if (queue === q) startFilledGame(q.size); }, 900);
+    return;
+  }
+  // net: only the host drives the clock / start.
+  if (!net || net.role !== 'host' || net.phase !== 'hostlobby') return;
+  if (!q.isRoom && !q.deadline) q.deadline = now + QUEUE_WAIT_S * 1000;
+  if (net.names.length >= q.size) { startNetGame(q, 0); return; }
+  if (!q.isRoom && now >= q.deadline && options.fillBots) startNetGame(q, q.size - net.names.length);
+}
+
+function startNetGame(q, bots) {
+  q.starting = true;
+  net.aiCount = Math.max(0, Math.min(4 - net.names.length, bots));
+  net.hostStart();
+  if (net.phase !== 'playing') { q.starting = false; q.deadline = 0; }
+  render();
+}
+
+// ---------- multiplayer session plumbing ----------
 
 function openNet() {
   if (net) return;
   net = new NetSession({
     onRender: () => render(),
-    onGameStart: (c) => {
-      clearTimeout(aiTimer); aiTimer = null;
-      ctrl = c;
-      Object.keys(cache).forEach((k) => delete cache[k]);
-      window.__ctrl = ctrl; // debugging / automated tests
-      startTimerUpdater();
-      render();
-    },
-    onGameEnd: () => { stopLobbyWatch(); stopTimerUpdater(); net = null; ctrl = null; render(); },
-    onNotice: (msg) => { netNotice = msg; render(); },
+    onGameStart: (c) => enterGame(c),
+    onGameEnd: () => { net = null; ctrl = null; queue = null; render(); },
+    onNotice: (msg) => { netNotice = msg; if (queue) queue.notice = msg; render(); },
   });
-  net.myName = options.playerName || ''; // pre-fill saved name
-  net.roomList = [];
-  refreshLobby();
-  render();
+  net.myName = myName();
 }
 
-let _lobbyUnwatch = null;
-
-function refreshLobby() {
-  if (!net || !net.usePeer) return;
-  listRooms().then((rooms) => {
-    if (!net) return;
-    net.roomList = rooms;
-    render();
-  }).catch(() => {});
-  // Watch for live updates (only one watcher at a time).
-  stopLobbyWatch();
-  try {
-    _lobbyUnwatch = watchRooms((rooms) => {
-      if (!net) return;
-      net.roomList = rooms;
-      // Only re-render if we're on the lobby screen.
-      if (net.phase === 'menu') render();
-    });
-  } catch {}
-}
-
-function stopLobbyWatch() {
-  if (_lobbyUnwatch) { try { _lobbyUnwatch(); } catch {} _lobbyUnwatch = null; }
-}
-
-let _timerUpdater = null;
-
-/** Update the turn timer display every second during multiplayer games. */
-function startTimerUpdater() {
-  stopTimerUpdater();
-  _timerUpdater = setInterval(() => {
-    if (!net || !ctrl || !ctrl.mp) return;
-    const el = document.getElementById('turntimer');
-    if (!el) return;
-    const remaining = net.getTurnRemaining();
-    el.textContent = `⏱ ${remaining}초`;
-    el.classList.toggle('urgent', remaining <= 10 && remaining > 0);
-  }, 1000);
-  if (_timerUpdater.unref) _timerUpdater.unref();
-}
-
-function stopTimerUpdater() {
-  if (_timerUpdater) { clearInterval(_timerUpdater); _timerUpdater = null; }
-}
-
-function savePlayerName(name) {
+function saveProfile(name, avatar) {
   const clean = String(name || '').trim().slice(0, 12);
-  if (clean && clean !== options.playerName) {
-    options.playerName = clean;
-    saveOptions(storage, options);
-  }
-  return clean || '도사';
+  options.playerName = clean;
+  if (avatar) options.avatar = avatar;
+  saveOptions(storage, options);
+  V.setMyAvatar(options.avatar);
 }
 
-const netInputVal = (id) => document.getElementById(id)?.value ?? '';
+let pendingAvatar = null;
 
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el || el.disabled) return;
-  // Unlock audio on first interaction; start menu BGM if enabled.
   unlockAudio();
   if (options.bgm && !ctrl) startBGM('calm');
   const d = el.dataset;
   switch (d.action) {
-    case 'start': startGame(d.name); return;
-    case 'resume': resumeGame(); return;
     case 'dex': dexOpen = true; break;
     case 'dex-close': dexOpen = false; break;
     case 'rules': rulesOpen = true; break;
     case 'rules-close': rulesOpen = false; break;
     case 'achv': achvOpen = true; break;
     case 'achv-close': achvOpen = false; break;
-    case 'records': recordsOpen = true; break;
-    case 'records-close': recordsOpen = false; break;
-    case 'challenge': chalOpen = true; break;
-    case 'challenge-close': chalOpen = false; break;
-    case 'challenge-start': startChallenge(d.id); return;
     case 'options': optionsOpen = true; break;
     case 'options-close': optionsOpen = false; break;
     case 'toggle-help':
       options.beginnerHelp = !options.beginnerHelp;
+      saveOptions(storage, options);
+      break;
+    case 'toggle-fill':
+      options.fillBots = !options.fillBots;
       saveOptions(storage, options);
       break;
     case 'toggle-bgm':
@@ -451,12 +481,32 @@ document.addEventListener('click', (e) => {
       saveOptions(storage, options);
       setSFXEnabled(options.sfx);
       break;
-    case 'difficulty':
-      if (['easy', 'normal', 'hard'].includes(d.v)) {
-        options.difficulty = d.v;
-        saveOptions(storage, options);
-      }
+    // ----- home / matching -----
+    case 'queue-size':
+      options.queueSize = Number(d.n);
+      saveOptions(storage, options);
       break;
+    case 'match': startQueue(options.queueSize); return;
+    case 'queue-cancel': cancelQueue(); netNotice = ''; break;
+    case 'room-create': createFriendRoom(); return;
+    case 'room-join': joinOpen = true; netNotice = ''; break;
+    case 'join-close': joinOpen = false; netNotice = ''; break;
+    case 'join-go':
+      if (joinFriendRoom($('joincode')?.value)) { joinOpen = false; netNotice = ''; }
+      break;
+    case 'room-start': if (net && queue) startNetGame(queue, options.fillBots ? Math.max(0, queue.size - net.names.length) : 0); return;
+    case 'profile': profileOpen = true; pendingAvatar = options.avatar; break;
+    case 'avatar': pendingAvatar = d.name; saveProfile($('profname')?.value ?? options.playerName, d.name); break;
+    case 'profile-save': saveProfile($('profname')?.value, pendingAvatar || options.avatar); profileOpen = false; break;
+    case 'rematch':
+      dropNet(); ctrl = null; optionsOpen = false; clearTimeout(aiTimer); aiTimer = null;
+      startQueue(options.queueSize);
+      return;
+    case 'restart':
+      dropNet(); ctrl = null; queue = null; optionsOpen = false; clearTimeout(aiTimer); aiTimer = null;
+      if (options.bgm) startBGM('calm');
+      break;
+    // ----- in-game -----
     case 'opp': ctrl.openOpp(d.id); break;
     case 'view-card':
       ctrl.viewCard(d.card, d.from === 'opp' ? { kind: 'opp', playerId: Number(d.pid) } : null);
@@ -466,85 +516,6 @@ document.addEventListener('click', (e) => {
       ctrl.sheet = from || null;
       break;
     }
-    case 'restart':
-      if (net) net.end();
-      ctrl = null; tutorial = null; optionsOpen = false; clearTimeout(aiTimer); aiTimer = null;
-      if (options.bgm) startBGM('calm');
-      break;
-    case 'tutorial': startTutorial(); return;
-    // ----- multiplayer -----
-    case 'net': openNet(); break;
-    case 'net-menu': if (net) { net.phase = 'menu'; netNotice = ''; refreshLobby(); } break;
-    case 'net-lobby-refresh': if (net) { refreshLobby(); } break;
-    case 'net-lobby-join': if (net) {
-      const code = d.code;
-      if (!code) break;
-      // If name is set, join directly. Otherwise ask for name first.
-      if (net.myName && net.myName.trim()) {
-        netNotice = '';
-        net.guestJoin(net.myName, code);
-        return;
-      } else {
-        net.pendingJoinCode = code;
-        net.phase = 'guestname';
-        netNotice = '';
-      }
-      break;
-    }
-    case 'net-host': if (net) { net.usePeer = true; net.phase = 'hostname'; netNotice = ''; } break;
-    case 'net-join': if (net) { net.usePeer = true; net.phase = 'guestname'; netNotice = ''; } break;
-    case 'net-manual': if (net) { net.usePeer = false; net.phase = 'menu'; netNotice = '수동 연결 모드: 코드를 두 번 주고받아야 해요.'; } break;
-    case 'net-peer': if (net) { net.usePeer = true; net.phase = 'menu'; netNotice = ''; } break;
-    case 'net-ai': if (net) {
-      const n = Math.max(0, Math.min(4 - net.names.length, Number(d.n) || 0));
-      net.aiCount = n;
-      netNotice = '';
-    } break;
-    case 'net-help': netHelpOpen = true; break;
-    case 'net-help-close': netHelpOpen = false; break;
-    case 'net-timelimit': if (net) {
-      const ms = Number(d.ms);
-      net.pendingTurnLimit = (ms === 20000) ? 20000 : 45000;
-      break;
-    }
-    case 'net-host-create': if (net) {
-      netNotice = '';
-      const name = savePlayerName(netInputVal('netname'));
-      const titleEl = document.getElementById('nettitle');
-      const title = titleEl ? titleEl.value.trim().slice(0, 20) : '';
-      const turnLimitMs = net.pendingTurnLimit || 45000;
-      net.pendingTurnLimit = null;
-      net.hostCreate(name, title, turnLimitMs);
-      return;
-    } break;
-    case 'net-host-invite': if (net) { netNotice = ''; net.hostInvite(); return; } break;
-    case 'net-host-accept': if (net) { netNotice = ''; net.hostAcceptAnswer(netInputVal('netanswer')); return; } break;
-    case 'net-host-lobby': if (net) { net.phase = 'hostlobby'; netNotice = ''; } break;
-    case 'net-host-start': if (net) { netNotice = ''; net.hostStart(); } break;
-    case 'net-guest-next': if (net) {
-      net.myName = savePlayerName(netInputVal('netname'));
-      netNotice = '';
-      // If we came from lobby with a pending room, join it directly.
-      if (net.pendingJoinCode) {
-        const code = net.pendingJoinCode;
-        net.pendingJoinCode = null;
-        net.guestJoin(net.myName, code);
-        return;
-      }
-      net.phase = 'guestjoin';
-      break;
-    } break;
-    case 'net-guest-join': if (net) { netNotice = ''; net.guestJoin(net.myName, netInputVal('netoffer')); return; } break;
-    case 'net-cancel-join': if (net) { net.cancelGuestJoin(); } break;
-    case 'net-copy': {
-      const t = document.getElementById(d.from);
-      if (t) { t.select(); try { navigator.clipboard.writeText(t.value); netNotice = '복사됐어요.'; } catch { netNotice = '복사가 안 되면 직접 드래그해서 복사해주세요.'; } }
-      break;
-    }
-    case 'net-leave': if (net) { netHelpOpen = false; net.end(); return; } break;
-    case 'tut-next': tutAdvance(); return;
-    case 'tut-done': tutorial = null; break;
-    case 'tut-skip': tutorial = null; break;
     case 'ball': ctrl.toggleBall(d.color); break;
     case 'clear': ctrl.clearSelection(); break;
     case 'confirm-balls': {
@@ -552,9 +523,8 @@ document.addEventListener('click', (e) => {
       const snap = snapshotMovables();
       ctrl.confirmBalls();
       sfx.takeBall();
-      if (tutorial && tutorial.step === 0) tutorial.step = 1;
       render();
-      flyBalls(snap, colors, document.getElementById('me'));
+      flyBalls(snap, colors, document.getElementById('actionbar'));
       return;
     }
     case 'card': ctrl.openCard(d.card); break;
@@ -567,18 +537,16 @@ document.addEventListener('click', (e) => {
       ctrl.buy(d.card);
       sfx.catch();
       if (isMaster) setTimeout(() => sfx.masterBall(), 200);
-      if (tutorial && tutorial.step === 1) tutorial.step = 2;
       render();
-      flyClone(snap.get('card:' + d.card), document.getElementById('me'));
+      flyClone(snap.get('card:' + d.card), document.getElementById('actionbar'));
       return;
     }
     case 'reserve': {
       const snap = snapshotMovables();
       ctrl.reserveCard(d.card);
       sfx.reserve();
-      if (tutorial && tutorial.step === 1) tutorial.step = 2;
       render();
-      flyClone(snap.get('card:' + d.card), document.getElementById('me'));
+      flyClone(snap.get('card:' + d.card), document.getElementById('actionbar'));
       return;
     }
     case 'reserve-deck': ctrl.reserveDeck(d.tier); sfx.reserve(); break;
@@ -593,4 +561,5 @@ document.addEventListener('click', (e) => {
   render();
 });
 
+window.__render = render; // automated tests
 render();

@@ -6,9 +6,7 @@ import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core
 import { BALLS, TRAINERS, evoText } from './controller.js?v=1791962003';
 import { dexSummary } from '../storage/store.js?v=1791962003';
 import { ACHIEVEMENTS } from '../data/achievements.js?v=1791962003';
-import { CHALLENGES, challengeProgress } from '../data/challenges.js?v=1791962003';
 
-const diffLabel = { easy: '쉬움', normal: '보통', hard: '어려움' };
 
 const ASSET = 'assets';
 export const ballSrc = (key) => `${ASSET}/items/${BALLS[key].file}.png`;
@@ -80,59 +78,64 @@ export function boardHTML(ctrl) {
   </div>`;
 }
 
-// ---------- header / opponents ----------
+// ---------- avatars ----------
 
-export function headerHTML(ctrl) {
-  const s = ctrl.state;
-  let badge;
-  if (ctrl.finished) badge = '게임 종료';
-  else if (ctrl.isHumanTurn) badge = '▶ 당신의 차례';
-  else badge = `${ctrl.current.name} 차례`;
-  const last = ctrl.lastRound ? `<div class="lastround">마지막 라운드! ${s.players[s.endTriggeredBy].name}이(가) 21점 달성</div>` : '';
-  const netbadge = ctrl.mp ? `<div class="netbadge">📡 대전 ${ctrl.mp.names.length}인</div>` : '';
-  // Turn timer for multiplayer (90s limit).
-  let timerHtml = '';
-  if (ctrl.mp && typeof ctrl.mp.getTurnRemaining === 'function' && !ctrl.finished) {
-    const remaining = ctrl.mp.getTurnRemaining();
-    const urgent = remaining <= 10 ? ' urgent' : '';
-    timerHtml = `<div class="turntimer${urgent}" id="turntimer">⏱ ${remaining}초</div>`;
-  }
-  return `<div class="header">
-      <div class="title">오행 스플렌더<small>OHAENG SPLENDOR · DOT EDITION</small></div>
-      <div class="headbtns">
-        <button class="rulesbtn" data-action="rules">룰 설명</button>
-        <button class="rulesbtn opt" data-action="options" aria-label="설정">⚙</button>
-      </div>
-      <div class="turnwrap">
-        ${netbadge}
-        <div class="turn ${ctrl.isHumanTurn ? 'mine' : ''}">${badge}</div>
-        ${timerHtml}
-      </div>
-    </div>${last}`;
+const SEAT_COLORS = ['var(--obang-red)', 'var(--obang-blue)', 'var(--obang-yellow)', 'var(--obang-green)'];
+let myAvatar = '하늘';
+export const setMyAvatar = (name) => { myAvatar = name; };
+
+/** Round avatar: trainer portrait when known, else a colored initial. */
+export function avatarHTML(name, seat = 0, { me = false, cls = '' } = {}) {
+  const face = trainerFaceSrc(me ? myAvatar : name) || trainerFaceSrc(name);
+  if (face) return `<img class="av ${cls}" src="${face}" alt="">`;
+  const ch = esc([...String(name || '?')][0] || '?');
+  return `<span class="av ini ${cls}" style="background:${SEAT_COLORS[seat % 4]}">${ch}</span>`;
 }
 
-const bonusPips = (p) => {
-  const b = getBonuses(p);
-  return COLORS.map((c) => `<span class="pip d-${c}" title="${BALLS[c].name}">${b[c]}</span>`).join('');
-};
+export const AVATARS = TRAINERS;
 
-export function opponentsHTML(ctrl) {
+// ---------- top bar (round + turn timer) / side rail ----------
+
+// timer: { remaining, limit } seconds
+export function headerHTML(ctrl, timer = { remaining: 0, limit: 45 }) {
   const s = ctrl.state;
-  return s.players.filter((p) => p.id !== ctrl.human).map((p) => {
-    const tk = TOKEN_KEYS.filter((k) => p.tokens[k] > 0)
-      .map((k) => `<span class="otp">${ballImg(k, 'mini2')}${p.tokens[k]}</span>`).join('');
-    return `
-    <button class="opp px ${s.current === p.id && !ctrl.finished ? 'active' : ''}" data-action="opp" data-id="${p.id}">
-      <div class="nm">${trainerFaceSrc(p.name) ? `<img class="tface" src="${trainerFaceSrc(p.name)}" alt="">` : ''}${p.isAI ? 'AI ' : '📡 '}${esc(p.name)}</div>
-      <div class="sc">${getPoints(p)}</div>
-      <div class="olbl2">보너스(할인)</div>
-      <div class="pips">${bonusPips(p)}</div>
-      <div class="olbl2">가진 령주</div>
-      <div class="otks2">${tk || '<span class="none">없음</span>'}</div>
-      <div class="meta">찜 ${p.hand.length} · 신수 ${p.tableau.length}마리<br><span class="more">눌러서 자세히</span></div>
+  const round = Math.floor(s.turn / s.players.length) + 1;
+  let badge;
+  if (ctrl.finished) badge = '게임 종료';
+  else if (ctrl.isHumanTurn) badge = '▶ 내 차례';
+  else badge = `${esc(ctrl.current.name)} 차례`;
+  const last = ctrl.lastRound ? `<div class="lastround">마지막 라운드! ${esc(s.players[s.endTriggeredBy].name)}이(가) 21점 달성</div>` : '';
+  const pct = ctrl.finished ? 0 : Math.max(0, Math.min(100, (timer.remaining / timer.limit) * 100));
+  const urgent = !ctrl.finished && timer.remaining <= 10 ? ' urgent' : '';
+  return `<div class="topbar">
+      <div class="round">라운드 <b>${round}</b></div>
+      <div class="turn ${ctrl.isHumanTurn ? 'mine' : ''}">${badge}</div>
+      <div class="headbtns">
+        <button class="iconbtn" data-action="rules" aria-label="룰 설명">?</button>
+        <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
+      </div>
+    </div>
+    <div class="timerbar${urgent}" id="timerbar"><i id="timerfill" style="width:${pct}%"></i><span id="turntimer">⏱ ${timer.remaining}초</span></div>${last}`;
+}
+
+/** Right-side vertical rail: every player's avatar + 21-point progress bar. */
+export function railHTML(ctrl) {
+  const s = ctrl.state;
+  return s.players.map((p) => {
+    const pts = getPoints(p);
+    const pct = Math.min(100, (pts / 21) * 100);
+    const active = s.current === p.id && !ctrl.finished;
+    const isMe = p.id === ctrl.human;
+    return `<button class="rail-item ${active ? 'active' : ''} ${isMe ? 'me' : ''}" data-action="opp" data-id="${p.id}" aria-label="${esc(p.name)} 상세">
+      <span class="avwrap">${avatarHTML(p.name, p.id, { me: isMe })}${p.isAI ? '<em class="botmark">BOT</em>' : ''}</span>
+      <span class="rnm">${esc(p.name)}</span>
+      <span class="rsc"><b>${pts}</b>/21</span>
+      <span class="hpbar"><i style="width:${pct}%"></i></span>
     </button>`;
   }).join('');
 }
+
+
 
 // ---------- supply ----------
 
@@ -189,18 +192,7 @@ function handHTML(ctrl) {
 
 export function meHTML(ctrl) {
   const me = ctrl.me;
-  const b = getBonuses(me);
-  const tc = tokenCount(me);
-  return `<div class="row1">
-      <div class="who">${me.name}<span class="sc">${getPoints(me)}점</span></div>
-      <div class="tkcount ${tc >= 10 ? 'full' : ''}">령주 ${tc}/10</div>
-      <div class="evcount">진화 ${me.evolved.length}회</div>
-    </div>
-    <div class="lbl">■ 보너스 (할인)</div>
-    <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</div>
-    <div class="lbl">■ 보유 령주</div>
-    <div class="mytokens">${tokensHTML(ctrl)}</div>
-    <div class="lbl">■ 내 신수 (${me.tableau.length})</div>
+  return `<div class="lbl">■ 내 신수 (${me.tableau.length}) · 진화 ${me.evolved.length}회</div>
     <div class="mypoke">${tableauHTML(ctrl)}</div>
     <div class="lbl">■ 찜한 카드 (${me.hand.length}/3)</div>
     <div class="reserved">${handHTML(ctrl)}</div>`;
@@ -249,6 +241,22 @@ export function actionBarHTML(ctrl) {
     <button class="btn primary" data-action="confirm-balls" ${valid ? '' : 'disabled'}>${label}</button></div>`;
 }
 
+/** Bottom shop-bar: my score, bonuses, resources, then the action buttons. */
+export function dockHTML(ctrl) {
+  const me = ctrl.me;
+  const b = getBonuses(me);
+  const tc = tokenCount(me);
+  return `<div class="dock-top">
+      ${avatarHTML(me.name, ctrl.human, { me: true, cls: 'sm' })}
+      <span class="dock-name">${esc(me.name)}</span>
+      <span class="dock-sc"><b>${getPoints(me)}</b>점</span>
+      <span class="dock-pips">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</span>
+      <span class="tkcount ${tc >= 10 ? 'full' : ''}">령주 ${tc}/10</span>
+    </div>
+    <div class="mytokens">${tokensHTML(ctrl)}</div>
+    ${actionBarHTML(ctrl)}`;
+}
+
 export function logHTML(ctrl) {
   if (!ctrl.log.length) return '';
   return `<div class="log">${ctrl.log.slice(-4).map((l) => `<div>${l}</div>`).join('')}</div>`;
@@ -273,7 +281,7 @@ export function aiToastHTML(ctrl) {
     const to = ctrl.cardsById.get(ev.to);
     body = from && to ? `${staticSprite(from)} → ${staticSprite(to)}<b>진화!</b>` : '진화!';
   } else return '';
-  return `<div class="aitoast"><span class="who">${p.isAI ? 'AI ' : ''}${esc(p.name)}</span><span class="what">${body}</span></div>`;
+  return `<div class="aitoast"><span class="who">${p.isAI ? 'BOT ' : ''}${esc(p.name)}</span><span class="what">${body}</span></div>`;
 }
 
 // ---------- sheet + overlays ----------
@@ -292,7 +300,7 @@ function oppSheetHTML(p, ctrl) {
     ? p.hand.map((card) => `<button class="orsv" data-action="view-card" data-card="${card.id}" data-from="opp" data-pid="${p.id}">${staticSprite(card)}${card.name} <small>${tierLabel[card.tier]}${card.points ? ` · ${card.points}점` : ''}</small></button>`).join('')
     : '<div class="empty-note">없음</div>';
   return `<div class="sheet-back" data-action="close"></div><div class="sheet wide">
-    <div class="sheet-title">${trainerFaceSrc(p.name) ? `<img class="tface big" src="${trainerFaceSrc(p.name)}" alt="">` : ''}${p.isAI ? 'AI ' : ''}${esc(p.name)} <small>· ${getPoints(p)}점 · 진화 ${p.evolved.length}회</small></div>
+    <div class="sheet-title">${avatarHTML(p.name, p.id, { me: p.id === ctrl.human, cls: 'md' })}${p.isAI ? 'BOT ' : ''}${esc(p.name)} <small>· ${getPoints(p)}점 · 진화 ${p.evolved.length}회</small></div>
     <div class="olbl">■ 보너스 (할인)</div>
     <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</div>
     <div class="olbl">■ 가진 령주 (${tokenCount(p)}/10)</div>
@@ -378,36 +386,6 @@ export function sheetHTML(ctrl) {
     </div></div>`;
 }
 
-export function startHTML({ save = null, dex = null, cards = [], options = null, notice = '' } = {}) {
-  const sum = dex ? dexSummary(dex, cards) : null;
-  const diff = options?.difficulty ?? 'normal';
-  const resume = save
-    ? `<button class="btn primary resume" data-action="resume">이어하기<small>${save.humanName} · ${save.game.turn}턴째 · ${new Date(save.savedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small></button>`
-    : '';
-  return `<div class="overlay"><div class="panel">
-    <div class="title big">오행 스플렌더<small>OHAENG SPLENDOR · DOT EDITION</small></div>
-    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
-    <p class="sheet-p">도사를 골라 AI 3명과 4인전을 시작해요.<br>21점을 먼저 모으는 도사가 승리!</p>
-    ${resume}
-    <div class="tiles">${TRAINERS.map((t, i) => `<button class="tile t${i}" data-action="start" data-name="${t}">${trainerFaceSrc(t) ? `<img class="tileface" src="${trainerFaceSrc(t)}" alt="">` : `<span class="tilebox"></span>`}${t}</button>`).join('')}</div>
-    <div class="difflabel">AI 난이도</div>
-    <div class="diffrow">
-      ${[['easy', '쉬움'], ['normal', '보통'], ['hard', '어려움']].map(([v, l]) =>
-        `<button class="diffbtn ${diff === v ? 'sel' : ''}" data-action="difficulty" data-v="${v}">${l}</button>`).join('')}
-    </div>
-    <p class="sheet-p">AI의 플레이 스타일(전문화·견제·균형)은 매 게임 랜덤으로 정해져요. 🤫</p>
-    ${save ? '<p class="sheet-p warn">새로 시작하면 저장된 게임은 사라져요.</p>' : ''}
-    <div class="btnrow"><button class="btn alt" data-action="dex">신수록 ${sum ? `${sum.caught}/${sum.total}` : ''}</button>
-    <button class="btn alt" data-action="rules">룰 설명</button>
-    <button class="btn alt" data-action="options">⚙ 설정</button></div>
-    <div class="btnrow"><button class="btn alt" data-action="achv">🏆 업적</button>
-    <button class="btn alt" data-action="records">📊 기록</button>
-    <button class="btn alt" data-action="challenge">🎯 챌린지</button></div>
-    <div class="btnrow"><button class="btn primary" data-action="tutorial">튜토리얼 (처음 하세요?)</button></div>
-    <div class="btnrow"><button class="btn primary" data-action="net">📡 대전 (2~4인 멀티플레이)</button></div>
-  </div></div>`;
-}
-
 export function rulesHTML() {
   return `<div class="overlay"><div class="panel rulespanel">
     <div class="title big">룰 설명</div>
@@ -419,7 +397,7 @@ export function rulesHTML() {
       ② <b>같은 령주 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
       ③ <b>카드 찜하기</b> (최대 3장, 여의주 1개를 받아요 · 여의주는 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
       ④ <b>신수 모시기</b> (령주를 내고 카드를 가져와요)<br>
-      <span style="color:#4ade80">■</span> <b>초록 테두리</b>=지금 바로 모실 수 있음 · <span style="color:#60a5fa">■</span> <b>파랑 테두리</b>=고른 령주를 가져가면 다음 턴에 모실 수 있음</p>
+      <span style="color:var(--ok)">■</span> <b>초록 테두리</b>=지금 바로 모실 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 테두리</b>=고른 령주를 가져가면 다음 턴에 모실 수 있음</p>
       <h4>■ 보너스 = 할인</h4>
       <p>모신 신수의 보너스 1개(희귀/전설은 2개)마다 해당 령주 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
       <h4>■ 진화</h4>
@@ -432,47 +410,6 @@ export function rulesHTML() {
       <p>① 진화 횟수가 많은 쪽 → ② 그래도 동점이면 앞면 신수가 적은 쪽이 이겨요.</p>
     </div>
     <div class="btnrow"><button class="btn primary" data-action="rules-close">닫기</button></div>
-  </div></div>`;
-}
-
-export function tutorialHTML(tut) {
-  if (!tut) return '';
-  const steps = [
-    `<b>STEP 1</b> 령주를 모아보세요!<br>서로 다른 령주 3개를 누른 뒤 <b>[가져가기]</b>를 누르세요.`,
-    `<b>STEP 2</b> 신수를 모셔보세요!<br>카드를 누르면 필요한 령주를 확인할 수 있어요. 령주가 모자라면 몇 턴 더 모아보세요.`,
-    `<b>STEP 3</b> 보너스 획득!<br>모신 신수의 보너스 색 령주는 게임 끝까지 1개씩 영구 할인돼요.`,
-    `<b>STEP 4</b> 21점을 먼저 모으면 승리!<br>카드를 미리 <b>[찜하기]</b>로 확보하거나, 보너스를 모아 <b>진화</b>시켜보세요. 행운을 빌어요!`,
-  ];
-  const last = tut.step >= steps.length - 1;
-  const mid = tut.step === 2;
-  return `<div class="tutbanner">
-    <div class="tuttext">${steps[Math.min(tut.step, steps.length - 1)]}</div>
-    <div class="tutbtns">
-      ${mid ? '<button class="btn primary" data-action="tut-next">다음</button>' : ''}
-      ${last ? '<button class="btn primary" data-action="tut-done">시작하기</button>' : ''}
-      <button class="btn ghost" data-action="tut-skip">건너뛰기</button>
-    </div>
-  </div>`;
-}
-
-export function optionsHTML(options) {
-  return `<div class="overlay"><div class="panel">
-    <div class="title big">설정</div>
-    <button class="optrow" data-action="toggle-help">
-      <span>초보자 팁 표시</span>
-      <span class="toggle ${options.beginnerHelp ? 'on' : ''}">${options.beginnerHelp ? '켬' : '끔'}</span>
-    </button>
-    <p class="sheet-p">게임 중 상황에 맞는 도움말을 보여줘요.</p>
-    <button class="optrow" data-action="toggle-bgm">
-      <span>🎵 배경음악</span>
-      <span class="toggle ${options.bgm ? 'on' : ''}">${options.bgm ? '켬' : '끔'}</span>
-    </button>
-    <button class="optrow" data-action="toggle-sfx">
-      <span>🔔 효과음</span>
-      <span class="toggle ${options.sfx ? 'on' : ''}">${options.sfx ? '켬' : '끔'}</span>
-    </button>
-    <div class="btnrow"><button class="btn ghost" data-action="restart">타이틀로 돌아가기</button></div>
-    <div class="btnrow"><button class="btn primary" data-action="options-close">닫기</button></div>
   </div></div>`;
 }
 
@@ -495,8 +432,8 @@ function beginnerTip(ctrl) {
   return '21점이 목표! 령주를 모아서 신수를 모시세요. 보너스가 쌓이면 할인이 커져요.';
 }
 
-export function helpHTML(ctrl, options, tutorial) {
-  if (!options.beginnerHelp || !ctrl || ctrl.finished || tutorial) return '';
+export function helpHTML(ctrl, options) {
+  if (!options.beginnerHelp || !ctrl || ctrl.finished) return '';
   const tip = beginnerTip(ctrl);
   if (!tip) return '';
   return `<div class="helpbanner"><span class="helptag">TIP</span><span>${tip}</span></div>`;
@@ -520,26 +457,6 @@ export function dexHTML(dex, cards) {
   </div></div>`;
 }
 
-export function endHTML(ctrl) {
-  const s = ctrl.state;
-  const rows = s.ranking.map((r) => {
-    const p = s.players[r.player];
-    return `<tr class="${r.rank === 1 ? 'win' : ''} ${p.id === ctrl.human ? 'me' : ''}"><td>${r.rank}</td><td>${p.isAI ? 'AI ' : ''}${p.name}</td><td>${r.points}점</td><td>진화 ${r.evolutions}</td><td>${r.pokemon}마리</td></tr>`;
-  }).join('');
-  const top = s.ranking[0].player === ctrl.human;
-  const scoreLine = ctrl.lastScore != null
-    ? `<p class="scoreline">승리 점수 <b>${ctrl.lastScore}</b>${ctrl.lastBest ? ' <span class="newbest">NEW!</span>' : ''}</p>`
-    : '';
-  return `<div class="overlay"><div class="panel">
-    <div class="title big">${top ? '우승!' : '게임 종료'}<small>${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : '최종 순위'}</small></div>
-    <table class="rank">${rows}</table>
-    ${scoreLine}
-    <p class="sheet-p">동점은 진화 횟수가 많은 쪽 → 앞면 신수 수가 적은 쪽이 이겨요.</p>
-    <div class="btnrow"><button class="btn alt" data-action="dex">신수록</button>
-    <button class="btn primary" data-action="restart">다시 하기</button></div>
-  </div></div>`;
-}
-
 export function achvHTML(unlocked) {
   const rows = ACHIEVEMENTS.map((a) => {
     const got = !!unlocked[a.id];
@@ -554,173 +471,127 @@ export function achvHTML(unlocked) {
   </div></div>`;
 }
 
-export function recordsHTML(records) {
-  const hist = records.history.slice().reverse().map((h) =>
-    `<tr><td>${h.won ? '🏆' : '─'}</td><td>${h.score}</td><td>${h.points}점</td><td>${h.turns}턴</td><td>${diffLabel[h.difficulty] || ''}</td></tr>`).join('');
-  return `<div class="overlay"><div class="panel">
-    <div class="title big">기록<small>최고 ${records.best}점 · ${records.wins}승/${records.games}전</small></div>
-    ${hist ? `<table class="rank"><tr><th></th><th>점수</th><th>결과</th><th>턴</th><th>난이도</th></tr>${hist}</table>` : '<p class="sheet-p">아직 기록이 없어요.</p>'}
-    <div class="btnrow"><button class="btn primary" data-action="records-close">닫기</button></div>
-  </div></div>`;
-}
+// ---------- lobby / matching / result screens ----------
 
-export function challengeListHTML(completed) {
-  const rows = CHALLENGES.map((c) => {
-    const done = !!completed[c.id];
-    return `<button class="chalrow" data-action="challenge-start" data-id="${c.id}">
-      <span class="chalicon">${done ? '✅' : '🎯'}</span>
-      <div><b>${c.name}</b><br><small>${c.desc}</small></div></button>`;
-  }).join('');
-  return `<div class="overlay"><div class="panel">
-    <div class="title big">챌린지<small>${Object.keys(completed).length}/${CHALLENGES.length} 클리어</small></div>
-    <div class="achvlist">${rows}</div>
-    <div class="btnrow"><button class="btn primary" data-action="challenge-close">닫기</button></div>
-  </div></div>`;
-}
-
-export function challengeBannerHTML(ctrl) {
-  if (!ctrl?.challenge || ctrl.challengeDone || ctrl.finished) return '';
-  const p = challengeProgress(ctrl.challenge, ctrl, getPoints, bonusList);
-  const left = Math.max(0, ctrl.challenge.maxTurns - ctrl.humanTurns);
-  return `<div class="chbanner"><span>🎯 ${ctrl.challenge.name}</span><span>${p.cur}/${p.target}${p.label}</span><span>남은 턴 ${left}</span></div>`;
-}
-
-export function challengeEndHTML(won, challenge) {
-  return `<div class="overlay"><div class="panel">
-    <div class="title big">${won ? '챌린지 성공!' : '챌린지 실패'}<small>${challenge.name}</small></div>
-    <p class="sheet-p">${won ? '목표를 달성했어요! 🎉' : `목표: ${challenge.desc}`}</p>
-    <div class="btnrow"><button class="btn alt" data-action="challenge">다른 챌린지</button>
-    <button class="btn primary" data-action="restart">타이틀로</button></div>
-  </div></div>`;
-}
-
-// ---------- multiplayer lobby ----------
-
-// ---------- multiplayer rejoin ----------
-
-export function netHelpHTML() {
-  return `<div class="overlay"><div class="panel netpanel">
-    <div class="title">📡 대전 방법</div>
-    <div class="rules">
-      <h4>■ 연결하기 (2~4인)</h4>
-      <p>① 한 명이 <b>[방 만들기]</b>를 누르면 6자리 방 코드가 나와요.<br>
-      ② 친구에게 코드를 알려주세요 (카톡, 문자 등).<br>
-      ③ 친구는 <b>[참가하기]</b> → 코드 6자리 입력 → 연결 완료!<br>
-      ④ 2~4명이 모이면 방장이 <b>[게임 시작]</b>을 눌러요.</p>
-      <h4>■ 알아두면 좋아요</h4>
-      <p>• 같은 와이파이가 아니어도 돼요. 인터넷만 되면 OK.<br>
-      • 카톡 인앱 브라우저(팝업)보다 Safari·Chrome 앱에서 열면 안정적이에요.<br>
-      • 실수로 나가도 60초 안에 같은 코드로 들어오면 이어서 할 수 있어요.<br>
-      • 방장이 나가면 게임이 끝나요.<br>
-      • 인원이 부족하면 남는 자리를 AI로 채울 수 있어요 (방장 로비에서 선택).<br>
-      • 각자 자기 차례에만 둘 수 있어요.</p>
+export function homeHTML({ options, dex, notice = '' }) {
+  const g = dex?.games || { played: 0, won: 0 };
+  const size = options.queueSize;
+  const name = esc(options.playerName || '도사');
+  return `<div class="overlay screen home">
+    <div class="home-top">
+      <button class="profile-chip px" data-action="profile">${avatarHTML(options.avatar, 0, { me: true, cls: 'sm' })}
+        <span><b>${name}</b><small>${g.played}판 ${g.won}승</small></span></button>
+      <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
     </div>
-    <div class="btnrow"><button class="btn primary" data-action="net-help-close">닫기</button></div>
+    <div class="home-hero">
+      <div class="title big">오행 스플렌더<small>OHAENG SPLENDOR · DOT EDITION</small></div>
+      <div class="hero-av">${avatarHTML(options.avatar, 0, { me: true, cls: 'lg' })}</div>
+      <p class="hero-sub">령주를 모아 21점을 먼저 채워라!</p>
+    </div>
+    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
+    <div class="home-match">
+      <div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
+        `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
+      <button class="btn bigstart" data-action="match">매칭 시작<small>${size}인 대전</small></button>
+      <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span>
+        <span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>
+      <div class="btnrow"><button class="btn alt" data-action="room-create">친구와 방 만들기</button>
+      <button class="btn alt" data-action="room-join">코드로 참가</button></div>
+    </div>
+    <nav class="tabbar">
+      <button data-action="dex"><span>📖</span>컬렉션</button>
+      <button data-action="achv"><span>🏆</span>업적</button>
+      <button data-action="rules"><span>📜</span>룰</button>
+      <button data-action="options"><span>⚙</span>설정</button>
+    </nav>
+  </div>`;
+}
+
+/**
+ * Matching queue / friend room.
+ * v: { title, size, slots: [{name, bot, me}], countdown (sec|null), code, host, fillBots, notice, searching }
+ */
+export function queueHTML(v) {
+  const slots = Array.from({ length: v.size }, (_, i) => {
+    const sl = v.slots[i];
+    if (!sl) return `<div class="slot empty"><span class="av ini wait">?</span><span class="slotnm">대기 중…</span></div>`;
+    return `<div class="slot ${sl.me ? 'me' : ''}">${avatarHTML(sl.name, i, { me: sl.me })}
+      <span class="slotnm">${esc(sl.name)}</span>${sl.bot ? '<em class="botmark">BOT</em>' : sl.me ? '<em class="memark">나</em>' : ''}</div>`;
+  }).join('');
+  const have = v.slots.length;
+  const cd = v.countdown != null && v.fillBots
+    ? `<div class="cd"><b>${v.countdown}</b><small>초 후 빈 자리를 봇으로 채워요</small></div>`
+    : `<div class="cd"><b class="dots">…</b><small>${v.fillBots ? '' : '봇 채움 꺼짐 · '}상대를 기다리는 중</small></div>`;
+  return `<div class="overlay screen queue">
+    <div class="title big">${esc(v.title)}<small>${have}/${v.size}명</small></div>
+    ${v.notice ? `<p class="sheet-p warn">${esc(v.notice)}</p>` : ''}
+    ${v.code ? `<div class="shortcode"><span>방 코드 (친구에게 알려주세요)</span><b>${esc(v.code)}</b></div>` : ''}
+    <div class="slots n${v.size}">${slots}</div>
+    ${v.starting ? '<div class="cd"><b>GO!</b><small>게임에 입장하는 중</small></div>' : cd}
+    <div class="btnrow">
+      ${v.host && !v.starting ? `<button class="btn primary" data-action="room-start" ${have < 2 && !v.fillBots ? 'disabled' : ''}>${have < v.size ? '봇 채우고 시작' : '게임 시작'}</button>` : ''}
+      <button class="btn ghost" data-action="queue-cancel">${v.isRoom ? '방 나가기' : '매칭 취소'}</button>
+    </div>
+  </div>`;
+}
+
+export function joinCodeHTML(notice = '') {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">코드로 참가</div>
+    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
+    <p class="sheet-p">친구가 알려준 6자리 방 코드를 입력하세요.</p>
+    <input id="joincode" class="netinput code" maxlength="6" placeholder="ABC123" autocomplete="off">
+    <div class="btnrow"><button class="btn ghost" data-action="join-close">취소</button>
+    <button class="btn primary" data-action="join-go">참가</button></div>
   </div></div>`;
 }
 
-export function netHTML(net, notice = '') {
-  const roster = net.names.map((name, i) =>
-    `<div class="roster-row">${i === 0 ? '👑' : '🎮'} ${esc(name)}${i === net.myIndex ? ' (나)' : ''}</div>`).join('');
-  let body = '';
-  switch (net.phase) {
-    case 'menu': {
-      const modeBtn = net.usePeer
-        ? '<button class="btn ghost" data-action="net-manual">수동 연결 (서버 없이)</button>'
-        : '<button class="btn ghost" data-action="net-peer">간편 연결로 돌아가기</button>';
-      // Lobby: show room list
-      const rooms = net.roomList || [];
-      const roomHtml = rooms.length === 0
-        ? '<p class="sheet-p">열린 방이 없어요. 방을 만들어보세요!</p>'
-        : rooms.map((r) => `
-          <div class="roomitem" data-action="net-lobby-join" data-code="${esc(r.code)}">
-            <div class="roomtitle">${esc(r.title)}</div>
-            <div class="roommeta">👑 ${esc(r.hostName)} · ${r.playerCount}/4명 · ⏱ ${Math.round((r.turnLimitMs || 45000) / 1000)}초</div>
-          </div>`).join('');
-      body = `<p class="sheet-p">친구와 대전해요. 방을 골라 입장하세요. (2~4인)</p>
-        <div class="roomlist">${roomHtml}</div>
-        <div class="btnrow"><button class="btn primary" data-action="net-host">방 만들기</button>
-        <button class="btn ghost" data-action="net-lobby-refresh">🔄 새로고침</button></div>
-        <div class="btnrow">${modeBtn}
-        <button class="btn ghost" data-action="net-help">❓ 대전 방법</button></div>
-        <div class="btnrow"><button class="btn ghost" data-action="net-leave">닫기</button></div>`;
-      break;
-    }
-    case 'hostname': {
-      const tl = net.pendingTurnLimit || 45000;
-      body = `<p class="sheet-p">대전에서 쓸 이름과 방 제목을 입력하세요.<br><small>이름은 다음부터 자동 입력돼요.</small></p>
-        <input id="netname" class="netinput" maxlength="12" placeholder="이름" value="${esc(net.myName)}">
-        <input id="nettitle" class="netinput" maxlength="20" placeholder="방 제목 (예: 초보 환영)" value="">
-        <div class="airow"><span>⏱ 턴 시간제한</span><div class="aibtns">
-          <button class="aibtn ${tl === 20000 ? 'sel' : ''}" data-action="net-timelimit" data-ms="20000">20초</button>
-          <button class="aibtn ${tl === 45000 ? 'sel' : ''}" data-action="net-timelimit" data-ms="45000">45초</button>
-        </div></div>
-        <div class="btnrow"><button class="btn primary" data-action="net-host-create">방 만들기</button>
-        <button class="btn ghost" data-action="net-menu">뒤로</button></div>`;
-      break;
-    }
-    case 'busy':
-      body = `<p class="sheet-p">연결 중이에요...</p>
-        <div class="btnrow"><button class="btn ghost" data-action="net-cancel-join">취소</button></div>`;
-      break;
-    case 'hostoffer':
-      body = `${roster ? `<div class="roster">${roster}</div>` : ''}
-        <p class="sheet-p">이 코드를 친구에게 보내주세요 (카톡 복붙).</p>
-        <textarea class="netcode" readonly id="netoffer">${net.offerCode}</textarea>
-        <div class="btnrow"><button class="btn alt" data-action="net-copy" data-from="netoffer">📋 복사</button></div>
-        <p class="sheet-p">친구가 준 코드를 아래에 붙여넣고 연결하세요.</p>
-        <textarea class="netcode" id="netanswer" placeholder="친구의 코드 붙여넣기"></textarea>
-        <div class="btnrow"><button class="btn primary" data-action="net-host-accept">연결하기</button>
-        ${net.names.length > 1 ? '<button class="btn alt" data-action="net-host-lobby">로비로</button>' : ''}
-        <button class="btn ghost" data-action="net-leave">나가기</button></div>`;
-      break;
-    case 'hostlobby': {
-      const codeHtml = net.usePeer && net.shortCode
-        ? `<div class="shortcode"><span>방 코드</span><b>${esc(net.shortCode)}</b></div>
-           <p class="sheet-p">친구에게 이 6자리 코드를 알려주세요.</p>`
-        : '';
-      const maxAi = Math.max(0, 4 - net.names.length);
-      const aiBtns = [0, 1, 2, 3].filter((n) => n <= maxAi).map((n) =>
-        `<button class="aibtn ${net.aiCount === n ? 'sel' : ''}" data-action="net-ai" data-n="${n}">${n === 0 ? '없음' : n + '명'}</button>`).join('');
-      const total = net.names.length + net.aiCount;
-      body = `${codeHtml}<div class="roster">${roster}</div>
-        <p class="sheet-p">⏱ 턴 시간제한: ${Math.round((net.turnLimitMs || 45000) / 1000)}초</p>
-        ${maxAi > 0 ? `<div class="airow"><span>🤖 남는 자리 AI로 채우기 <small>(어려움)</small></span><div class="aibtns">${aiBtns}</div></div>` : ''}
-        <p class="sheet-p">${net.names.length}명${net.aiCount ? ` + AI ${net.aiCount}명` : ''} (총 ${total}인)</p>
-        <div class="btnrow">
-        ${!net.usePeer && net.names.length < 4 ? '<button class="btn alt" data-action="net-host-invite">➕ 게스트 초대</button>' : ''}
-        <button class="btn primary" data-action="net-host-start" ${total < 2 ? 'disabled' : ''}>게임 시작</button>
-        <button class="btn ghost" data-action="net-leave">나가기</button></div>`;
-      break;
-    }
-    case 'guestname':
-      body = `<p class="sheet-p">대전에서 쓸 이름을 입력하세요.<br><small>한 번 정하면 다음부터 자동 입력돼요.</small></p>
-        <input id="netname" class="netinput" maxlength="12" placeholder="이름" value="${esc(net.myName)}">
-        <div class="btnrow"><button class="btn primary" data-action="net-guest-next">다음</button>
-        <button class="btn ghost" data-action="net-menu">뒤로</button></div>`;
-      break;
-    case 'guestjoin':
-      // Lobby mode: join directly from room list. Kept as fallback.
-      body = `<p class="sheet-p">로비에서 방을 골라 입장하세요.</p>
-        <div class="btnrow"><button class="btn primary" data-action="net-menu">로비로</button></div>`;
-      break;
-    case 'guestanswer':
-      body = `<p class="sheet-p">이 코드를 방장에게 보내주세요.<br>방장이 입력하면 자동으로 연결돼요.</p>
-        <textarea class="netcode" readonly id="netanswer2">${net.answerCode}</textarea>
-        <div class="btnrow"><button class="btn alt" data-action="net-copy" data-from="netanswer2">📋 복사</button>
-        <button class="btn ghost" data-action="net-leave">나가기</button></div>`;
-      break;
-    case 'guestlobby':
-      body = `<div class="roster">${roster}</div>
-        <p class="sheet-p">방장이 게임을 시작하기를 기다리는 중...</p>
-        <div class="btnrow"><button class="btn ghost" data-action="net-leave">나가기</button></div>`;
-      break;
-    default:
-      body = '';
-  }
-  return `<div class="overlay"><div class="panel netpanel">
-    <div class="title">📡 대전 <small>멀티플레이</small></div>
-    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
-    ${body}
+export function profileHTML(options) {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">프로필</div>
+    <p class="sheet-p">닉네임</p>
+    <input id="profname" class="netinput" maxlength="12" placeholder="도사" value="${esc(options.playerName)}">
+    <p class="sheet-p">대표 캐릭터</p>
+    <div class="avpick">${AVATARS.map((n) => `<button class="avopt ${options.avatar === n ? 'sel' : ''}" data-action="avatar" data-name="${n}">${avatarHTML(n, 0, { cls: 'md' })}<span>${n}</span></button>`).join('')}</div>
+    <div class="btnrow"><button class="btn primary" data-action="profile-save">저장</button></div>
+  </div></div>`;
+}
+
+export function optionsHTML(options, inGame = false) {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">설정</div>
+    <button class="optrow" data-action="toggle-help">
+      <span>초보자 팁 표시</span>
+      <span class="toggle ${options.beginnerHelp ? 'on' : ''}">${options.beginnerHelp ? '켬' : '끔'}</span>
+    </button>
+    <button class="optrow" data-action="toggle-bgm">
+      <span>🎵 배경음악</span>
+      <span class="toggle ${options.bgm ? 'on' : ''}">${options.bgm ? '켬' : '끔'}</span>
+    </button>
+    <button class="optrow" data-action="toggle-sfx">
+      <span>🔔 효과음</span>
+      <span class="toggle ${options.sfx ? 'on' : ''}">${options.sfx ? '켬' : '끔'}</span>
+    </button>
+    ${inGame ? '<div class="btnrow"><button class="btn danger" data-action="restart">게임 나가기 (홈으로)</button></div>' : ''}
+    <div class="btnrow"><button class="btn primary" data-action="options-close">닫기</button></div>
+  </div></div>`;
+}
+
+export function endHTML(ctrl) {
+  const s = ctrl.state;
+  const rows = s.ranking.map((r) => {
+    const p = s.players[r.player];
+    const isMe = p.id === ctrl.human;
+    return `<tr class="${r.rank === 1 ? 'win' : ''} ${isMe ? 'me' : ''}"><td class="rk">${r.rank}</td>
+      <td class="who">${avatarHTML(p.name, p.id, { me: isMe, cls: 'sm' })}<span>${p.isAI ? 'BOT ' : ''}${esc(p.name)}</span></td>
+      <td>${r.points}점</td><td>진화 ${r.evolutions}</td><td>${r.pokemon}마리</td></tr>`;
+  }).join('');
+  const myRank = s.ranking.find((r) => r.player === ctrl.human)?.rank;
+  return `<div class="overlay screen result"><div class="panel">
+    <div class="title big">${myRank === 1 ? '우승!' : `${myRank}위`}<small>${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : '최종 순위'}</small></div>
+    <table class="rank">${rows}</table>
+    <p class="sheet-p">동점은 진화 횟수가 많은 쪽 → 앞면 신수 수가 적은 쪽이 이겨요.</p>
+    <div class="btnrow"><button class="btn ghost" data-action="restart">홈으로</button>
+    <button class="btn primary" data-action="rematch">다시 매칭</button></div>
   </div></div>`;
 }

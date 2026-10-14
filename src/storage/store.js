@@ -103,8 +103,9 @@ export function loadSave(storage, cards) {
 // ---------- Options ----------
 // { v:1, beginnerHelp: bool }
 
-const defaultOptions = () => ({ v: 1, beginnerHelp: true, difficulty: 'normal', personality: 'random', playerName: '', bgm: true, sfx: true });
+const defaultOptions = () => ({ v: 1, beginnerHelp: true, difficulty: 'normal', personality: 'random', playerName: '', avatar: '하늘', queueSize: 4, fillBots: true, bgm: true, sfx: true });
 
+const AVATARS = new Set(['하늘', '솔이', '바우', '달래']); // representative character = trainer portrait name
 const DIFFS = new Set(['easy', 'normal', 'hard']);
 const PERSS = new Set(['random', 'specialized', 'opportunistic', 'balanced']);
 
@@ -117,6 +118,9 @@ export function loadOptions(storage) {
     difficulty: DIFFS.has(o.difficulty) ? o.difficulty : 'normal',
     personality: PERSS.has(o.personality) ? o.personality : 'random',
     playerName: typeof o.playerName === 'string' ? o.playerName.slice(0, 12) : '',
+    avatar: AVATARS.has(o.avatar) ? o.avatar : '하늘',
+    queueSize: [2, 3, 4].includes(o.queueSize) ? o.queueSize : 4,
+    fillBots: o.fillBots !== false,
     bgm: o.bgm !== false,
     sfx: o.sfx !== false,
   };
@@ -129,6 +133,9 @@ export function saveOptions(storage, opts) {
     difficulty: DIFFS.has(opts.difficulty) ? opts.difficulty : 'normal',
     personality: PERSS.has(opts.personality) ? opts.personality : 'random',
     playerName: typeof opts.playerName === 'string' ? opts.playerName.slice(0, 12) : '',
+    avatar: AVATARS.has(opts.avatar) ? opts.avatar : '하늘',
+    queueSize: [2, 3, 4].includes(opts.queueSize) ? opts.queueSize : 4,
+    fillBots: opts.fillBots !== false,
     bgm: !!opts.bgm,
     sfx: !!opts.sfx,
   });
