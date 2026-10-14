@@ -1,7 +1,7 @@
 import json,sys,os
 from PIL import Image, ImageDraw
 T=sys.argv[1]; out=sys.argv[2]
-cards=json.load(open(T+"/docs/design/roster.json"))["cards"]
+cards=json.load(open(T+"/docs/design/"+(sys.argv[3] if len(sys.argv)>3 else "roster.json")+""))["cards"]
 cols=10; n=len(cards); rows=(n+cols-1)//cols
 s=Image.new("RGBA",(cols*96,rows*96),(248,248,240,255))
 for i,c in enumerate(cards):

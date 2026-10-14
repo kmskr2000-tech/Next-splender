@@ -25,8 +25,8 @@ export const CHALLENGES = [
   },
   {
     id: 'ch3',
-    name: '진화의 길',
-    desc: '20턴 안에 3회 진화하기',
+    name: '성장의 길',
+    desc: '20턴 안에 3회 성장시키기',
     goal: { evolutions: 3 },
     maxTurns: 20,
     difficulty: 'normal',
@@ -35,8 +35,8 @@ export const CHALLENGES = [
   },
   {
     id: 'ch4',
-    name: '무지개 가호',
-    desc: '18턴 안에 5가지 색상 보너스 모두 모으기',
+    name: '오방색 가호',
+    desc: '18턴 안에 적·흑·황·청·백 5가지 보너스 모두 모으기',
     goal: { bonusColors: 5 },
     maxTurns: 18,
     difficulty: 'normal',
@@ -45,8 +45,8 @@ export const CHALLENGES = [
   },
   {
     id: 'ch5',
-    name: '전설 사냥',
-    desc: '25턴 안에 희귀·전설 2장 모시기',
+    name: '설화 수집',
+    desc: '25턴 안에 희귀·전설 2장 영입하기',
     goal: { special: 2 },
     maxTurns: 25,
     difficulty: 'normal',
@@ -55,7 +55,7 @@ export const CHALLENGES = [
   },
   {
     id: 'ch6',
-    name: '대도사의 증명',
+    name: '천하제일의 증명',
     desc: '어려움 AI 상대로 20턴 안에 12점 달성하기',
     goal: { points: 12 },
     maxTurns: 20,
@@ -69,7 +69,7 @@ export function challengeProgress(challenge, ctrl, getPoints, bonusList) {
   const me = ctrl.me;
   const g = challenge.goal;
   if (g.points != null) return { cur: getPoints(me), target: g.points, label: '점' };
-  if (g.evolutions != null) return { cur: me.evolved.length, target: g.evolutions, label: '진화' };
+  if (g.evolutions != null) return { cur: me.evolved.length, target: g.evolutions, label: '성장' };
   if (g.bonusColors != null) {
     const colors = new Set();
     for (const card of me.tableau) for (const b of bonusList(card)) colors.add(b);

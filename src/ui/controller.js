@@ -9,29 +9,29 @@ import {
 import { chooseAction } from '../ai/heuristic.js?v=1791962003';
 
 export const BALLS = {
-  monster: { file: 'monster', name: '화령주', short: '화' },
-  super: { file: 'super', name: '수령주', short: '수' },
-  hyper: { file: 'hyper', name: '토령주', short: '토' },
-  heal: { file: 'heal', name: '목령주', short: '목' },
-  quick: { file: 'quick', name: '금령주', short: '금' },
-  master: { file: 'master', name: '여의주', short: '여의' },
+  monster: { file: 'monster', name: '적주', short: '적', hanja: '赤' },
+  super: { file: 'super', name: '흑주', short: '흑', hanja: '黑' },
+  hyper: { file: 'hyper', name: '황주', short: '황', hanja: '黃' },
+  heal: { file: 'heal', name: '청주', short: '청', hanja: '靑' },
+  quick: { file: 'quick', name: '백주', short: '백', hanja: '白' },
+  master: { file: 'master', name: '여의주', short: '여의', hanja: '珠' },
 };
 
 export const TRAINERS = ['하늘', '솔이', '바우', '달래'];
 
 const ERROR_TEXT = {
-  bad_ball_count: '서로 다른 령주 3개를 골라주세요 (남은 종류가 적으면 그만큼만).',
-  supply_empty: '공급처에 없는 령주가에요.',
-  supply_too_low: '같은 령주 2개는 공급처에 4개 이상 남아야 해요.',
+  bad_ball_count: '서로 다른 구슬 3개를 골라주세요 (남은 종류가 적으면 그만큼만).',
+  supply_empty: '공급처에 없는 구슬이에요.',
+  supply_too_low: '같은 구슬 2개는 공급처에 4개 이상 남아야 해요.',
   hand_full: '찜한 카드는 최대 3장이에요.',
   cannot_reserve: '희귀·전설 카드는 찜할 수 없어요.',
   deck_empty: '덱에 카드가 없어요.',
-  cannot_afford: '령주가 부족해서 모실 수 없어요.',
+  cannot_afford: '구슬이 부족해서 영입할 수 없어요.',
   master_required: '희귀·전설은 여의주가 1개 필요해요.',
   bad_discard_count: '반환할 개수가 맞지 않아요.',
   discard_full: '필요한 개수를 다 골랐어요. 바꾸려면 − 로 줄이세요.',
-  discard_owned: '가진 령주보다 많이 반환할 수 없어요.',
-  cannot_evolve: '진화할 수 없어요.',
+  discard_owned: '가진 구슬보다 많이 반환할 수 없어요.',
+  cannot_evolve: '성장할 수 없어요.',
   pass_not_allowed: '아직 할 수 있는 행동이 있어요.',
 };
 
@@ -294,7 +294,7 @@ export function createController({ cards, seed, humanName = '나', aiNames = ['�
 export function evoText(card, cardsById) {
   if (!card.evolvesTo) {
     if (card.tier === 'rare' || card.tier === 'legend') return '보너스 2개 · 여의주 필수';
-    return card.tier === 3 ? '최종 진화' : '진화 없음';
+    return card.tier === 3 ? '최종 성장' : '성장 없음';
   }
   const next = cardsById.get(card.evolvesTo);
   const req = COLORS.filter((c) => card.evolveReq?.[c]).map((c) => `${BALLS[c].short} 보너스 ${card.evolveReq[c]}`).join(' ');
@@ -309,9 +309,9 @@ export function describeEvent(ev, ctrl) {
     case 'takeBalls': return `${who}: ${ev.colors.map((c) => BALLS[c].name).join('·')} 가져감`;
     case 'takeTwo': return `${who}: ${BALLS[ev.color].name} 2개 가져감`;
     case 'reserve': return `${who}: ${ev.source === 'deck' ? '덱 위 카드를' : `${name(ev.cardId)}을(를)`} 찜${ev.gotMaster ? ' (여의주 +1)' : ' (여의주 품절)'}`;
-    case 'buy': return `${who}: ${name(ev.cardId)} 모심!`;
+    case 'buy': return `${who}: ${name(ev.cardId)} 영입!`;
     case 'discard': return `${who}: ${balls(ev.tokens)} 반환`;
-    case 'evolve': return `${who}: ${name(ev.from)} → ${name(ev.to)} 진화!`;
+    case 'evolve': return `${who}: ${name(ev.from)} → ${name(ev.to)} 성장!`;
     case 'pass': return `${who}: 차례 넘김`;
     case 'timeout': return `${who}: ⏰ 시간 초과로 차례 넘김`;
     case 'endTriggered': return `${who}가 21점 달성! 마지막 라운드`;
