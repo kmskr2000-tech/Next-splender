@@ -86,7 +86,7 @@ for c in cards:
     except (ModuleNotFoundError, TypeError):
         missing.add(str(arch))
         continue
-    if arch == "person":
+    if arch in ("person", "object"):
         spec = {k: v for k, v in sp.items() if k not in ("archetype", "palette")}
         spr = mod.draw(pal, stage_of(c["id"]), spec)
     else:
