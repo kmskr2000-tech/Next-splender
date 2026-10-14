@@ -39,9 +39,9 @@
   --ghost: #EADBB8; --on-ghost: var(--text);
   /* resource colors (placeholders until the GDD palette is final; reference by var only) */
   /* 한국 보물: 노리개 다홍 / 나전함 흑칠 / 복주머니 황금 / 청자 비색 / 백자 / 마패 청동 (임시값, 아트팀 확정 hex로 교체 예정). 텍스트 대비 4.5:1 이상. */
-  --monster: #C8323A; --super: #2B2622; --hyper: #D9A520; --heal: #6FA89A; --quick: #F4F1E8; --master: #9C6B3A;
+  --monster: #D6322E; --super: #2A2A38; --hyper: #F2B632; --heal: #6FA89A; --quick: #F4F1E8; --master: #9A5F28; /* chip bg darkened from icon bronze #B87333 for 4.5:1 */
   --monster-edge: #7A1F1A; --super-edge: #12151F; --hyper-edge: #8B5A2B; --heal-edge: #3F6F63; --quick-edge: #8C8A80; --master-edge: #5E3F1E;
-  --master-accent: #F2C14E;
+  --master-accent: #FFD84A;
   --on-monster: #FFFFFF; --on-super: #FFFFFF; --on-hyper: var(--ink); --on-heal: var(--ink); --on-quick: var(--ink); --on-master: #FFFFFF;
   /* rarity tints on white cards */
   --rare-bg: #FDE9A9; --legend-bg: #DCD3F5;
