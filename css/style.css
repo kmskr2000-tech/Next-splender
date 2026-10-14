@@ -431,3 +431,113 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 .relinfo { font-size: 11px; color: var(--text); line-height: 1.6; margin-top: 4px; }
 .relinfo small { display: block; color: var(--muted); font-size: 10px; }
 .dexcell .dd { color: var(--muted); font-size: 8px; line-height: 1.3; word-break: keep-all; }
+
+/* ============================================================
+   Ranked / tiers / cosmetics / shop (meta layer)
+   ============================================================ */
+.botmark.sim { background: var(--obang-blue); color: var(--on-blue); white-space: nowrap; }
+.rail-item .botmark.sim { font-size: 6px; left: -4px; }
+
+/* mode tabs */
+.modetabs { display: flex; margin-bottom: 12px; border: 3px solid var(--ink); box-shadow: var(--shadow); background: var(--panel); }
+.modetab { flex: 1; padding: 10px 0; font-size: 15px; text-align: center; border-right: 3px solid var(--ink); color: var(--text); }
+.modetab:last-child { border-right: 0; }
+.modetab.sel { background: var(--obang-red); color: var(--on-red); }
+.friend-row { margin-top: 12px; }
+.friend-row .btnrow { margin-top: 4px; }
+.nonrank { display: inline-block; font-size: 10px; color: var(--muted); border: 2px dashed var(--line); padding: 1px 6px; background: var(--panel); }
+.modetag { text-align: center; font-size: 11px; color: var(--muted); margin: -6px 0 6px; }
+.modetag.ranked { color: var(--obang-red); }
+.qtier { display: flex; justify-content: center; margin: 4px 0 6px; }
+
+/* ranked panel */
+.rk-card { background: var(--panel); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 10px 12px; margin-bottom: 12px; }
+.rk-head { display: flex; align-items: center; gap: 12px; }
+.rk-rp { font-size: 13px; line-height: 1.3; }
+.rk-rp b { font-size: 26px; color: var(--score); }
+.rk-rp small { display: block; font-size: 10px; color: var(--muted); }
+.season-tag { display: inline-block; font-size: 10px; color: var(--obang-blue); border: 2px dashed var(--obang-blue); padding: 1px 6px; margin: 8px 0 4px; background: var(--bg-sky); }
+.rk-rules { list-style: none; font-size: 11px; color: var(--text); line-height: 1.7; }
+.rk-rules li::before { content: '■ '; color: var(--obang-red); font-size: 8px; }
+.gate { list-style: none; font-size: 11px; margin-top: 6px; line-height: 1.7; }
+.gate .no { color: var(--score); }
+.gate .ok { color: var(--ok-text, var(--obang-green)); }
+.btn.bigstart.ranked { background: var(--obang-blue); color: var(--on-blue); }
+
+/* tier badge: number + shape + text, never color alone. .tb-art is the slot for badge art (assets/tiers/{id}.png). */
+.tbadge { display: inline-flex; align-items: center; gap: 5px; background: var(--panel); border: 3px solid var(--tb, #8a8f98); padding: 2px 8px 2px 3px; font-size: 11px; white-space: nowrap; vertical-align: middle; }
+.tbadge .tb-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; background: var(--tb, #8a8f98); color: #fff; font-size: 13px; text-shadow: 1px 1px 0 var(--ink); }
+.tbadge.jeong { border-style: double; border-width: 4px; box-shadow: 0 0 0 2px var(--obang-yellow); }
+.tbadge.jong .tb-num { border-radius: 50%; }
+.tbadge.jeong .tb-num { border-radius: 0; }
+.tbadge.unofficial { border-style: dashed; box-shadow: none; }
+.tbadge.unofficial.jeong { border-style: dashed; border-width: 3px; box-shadow: 0 0 0 2px var(--obang-yellow); }
+.tbadge.placing { --tb: var(--muted); }
+.tbadge .tb-art { display: none; width: 22px; height: 22px; background-size: contain; }
+.tbadge.lg { font-size: 14px; padding: 4px 12px 4px 5px; }
+.tbadge.lg .tb-num { min-width: 30px; height: 30px; font-size: 18px; }
+.tbadge.sm { font-size: 10px; padding: 1px 5px 1px 2px; border-width: 2px; margin-left: auto; }
+.tbadge.sm.jeong { border-width: 3px; }
+.tbadge.sm .tb-num { min-width: 16px; height: 16px; font-size: 11px; }
+.tg-9 { --tb: #7d838c; } .tg-8 { --tb: #6f8f4f; } .tg-7 { --tb: #2f8a62; }
+.tg-6 { --tb: #2a7fa6; } .tg-5 { --tb: #1F4E8C; } .tg-4 { --tb: #6a4aa0; }
+.tg-3 { --tb: #C8372D; } .tg-2 { --tb: #a31f3a; } .tg-1 { --tb: #b8860b; }
+
+.profile-chip .ttl { display: block; margin-top: 1px; }
+.ttl { font-size: 9px; color: var(--obang-blue); }
+.ttl.tt-rare { color: var(--obang-red); }
+.lbl .ttl { margin-left: 4px; padding: 0 4px; border: 1px solid var(--obang-blue); background: var(--bg-sky); }
+
+/* result RP block */
+.rpblock { background: var(--panel); border: 3px solid var(--ink); padding: 8px 10px; margin-bottom: 10px; text-align: center; }
+.rpblock.plain { font-size: 11px; color: var(--muted); }
+.rpblock .season-tag { margin: 0 0 6px; }
+.rp-line { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.rp-num b { font-size: 22px; color: var(--text); }
+.rp-d { font-style: normal; font-size: 18px; margin-left: 4px; }
+.rp-d.pos { color: var(--obang-green); }
+.rp-d.neg { color: var(--score); }
+.rp-note { display: block; font-size: 10px; color: var(--muted); margin-top: 4px; }
+.rpbar { height: 14px; border: 3px solid var(--ink); background: var(--panel-2); margin: 8px 0 4px; overflow: hidden; }
+.rpbar i { display: block; height: 100%; background: var(--obang-yellow); width: var(--to, 0%); animation: rpfill 1.1s ease-out; }
+@keyframes rpfill { from { width: var(--from, 0%); } to { width: var(--to, 0%); } }
+.promo { font-size: 13px; padding: 4px; margin-top: 4px; border: 2px solid var(--ink); }
+.promo small { display: block; font-size: 10px; color: var(--muted); }
+.promo.up { background: #E4F5EF; color: var(--obang-green); }
+.promo.down { background: #FBDADA; color: var(--score); }
+.promo.shield { background: var(--bg-sky); color: var(--obang-blue); font-size: 11px; }
+
+/* cosmetics: avatar frames (rings via box-shadow so layout is unchanged) */
+.av.fr-dancheong { border-color: var(--obang-red); box-shadow: 0 0 0 2px var(--obang-yellow), 0 0 0 4px var(--obang-green), 0 0 0 5px var(--ink); }
+.av.fr-royal { border-color: #b8860b; box-shadow: 0 0 0 2px #FDE9A9, 0 0 0 4px #b8860b, 0 0 0 5px var(--ink); }
+.av.lg.fr-dancheong, .av.lg.fr-royal { box-shadow: 0 0 0 4px var(--obang-yellow), 0 0 0 7px var(--obang-green), 0 0 0 8px var(--ink); }
+.rail-item .av.fr-dancheong, .rail-item .av.fr-royal { box-shadow: 0 0 0 2px var(--obang-yellow), 0 0 0 3px var(--ink); }
+/* cosmetics: card frames (own cards only; never touches cost / points areas) */
+.mp.cf-ink, .rsv.cf-ink, .card.cf-ink { border-color: #000; box-shadow: inset 0 0 0 2px var(--panel), inset 0 0 0 4px var(--ink); }
+.mp.cf-gold, .rsv.cf-gold, .card.cf-gold { border-color: #b8860b; box-shadow: inset 0 0 0 2px #FDE9A9, inset 0 0 0 3px #b8860b; }
+.mp.cf-hanji, .rsv.cf-hanji, .card.cf-hanji { }
+
+/* shop */
+.shoppanel { max-height: 92vh; display: flex; flex-direction: column; }
+.shoptabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.shoptab { flex: 1; text-align: center; padding: 7px 0; font-size: 11px; border: 3px solid var(--ink); background: var(--panel); color: var(--text); }
+.shoptab.sel { background: var(--obang-blue); color: var(--on-blue); }
+.shoptoast { margin: 2px 0 6px; color: var(--obang-green); }
+.shoplist { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; min-height: 120px; }
+.shopitem { display: grid; grid-template-columns: 64px 1fr auto; gap: 8px; align-items: center; background: var(--panel); border: 3px solid var(--ink); padding: 8px; }
+.shopitem.eq { border-color: var(--obang-green); background: #F2FBF7; }
+.si-pv { display: flex; align-items: center; justify-content: center; min-height: 48px; overflow: hidden; }
+.si-info b { display: block; font-size: 13px; }
+.si-info small { display: block; font-size: 10px; color: var(--muted); margin: 2px 0 4px; line-height: 1.4; }
+.si-meta { display: flex; gap: 6px; align-items: center; font-size: 10px; }
+.si-price { color: var(--score); }
+.si-price.free { color: var(--obang-green); }
+.rar { font-style: normal; border: 1px solid var(--line); padding: 0 4px; color: var(--muted); }
+.rar.rare { color: var(--obang-blue); border-color: var(--obang-blue); }
+.rar.epic { color: #6a4aa0; border-color: #6a4aa0; }
+.si-btn .btn { flex: none; padding: 8px 10px; font-size: 12px; min-width: 64px; }
+.pv.av { width: 40px; height: 40px; font-size: 16px; }
+.pv-card { width: 34px; height: 46px; background: var(--bg); border: 2px solid var(--ink); display: block; }
+.pv-ttl { font-size: 10px; text-align: center; line-height: 1.3; }
+.pv-emote { font-size: 30px; }
+.leave-warn b { color: var(--score); }

@@ -7,6 +7,12 @@ export const SAVE_KEY = 'ohsp-save-v1';
 export const OPTS_KEY = 'ohsp-opts-v1';
 export const ACHV_KEY = 'ohsp-achv-v1';
 export const RECORDS_KEY = 'ohsp-records-v1';
+export const PROFILE_KEY = 'ohsp-profile-v1';
+export const INV_KEY = 'ohsp-inv-v1';
+
+import { newRanked, applyRankedResult, applyVoidPenalty, TIERS, displayOf, leaveQueueBan } from '../meta/rating.js?v=1791962003';
+import { RANKED } from '../meta/config.js?v=1791962003';
+import { newInventory, sanitizeInventory, claimItem, equipItem } from '../meta/cosmetics.js?v=1791962003';
 
 export function browserStorage() {
   try { return globalThis.localStorage ?? null; } catch { return null; }
@@ -103,7 +109,7 @@ export function loadSave(storage, cards) {
 // ---------- Options ----------
 // { v:1, beginnerHelp: bool }
 
-const defaultOptions = () => ({ v: 1, beginnerHelp: true, difficulty: 'normal', personality: 'random', playerName: '', avatar: '하늘', queueSize: 4, fillBots: true, bgm: true, sfx: true });
+const defaultOptions = () => ({ v: 1, beginnerHelp: true, difficulty: 'normal', personality: 'random', playerName: '', avatar: '하늘', queueSize: 4, fillBots: true, bgm: true, sfx: true, mode: 'normal' });
 
 const AVATARS = new Set(['하늘', '솔이', '바우', '달래']); // representative character = trainer portrait name
 const DIFFS = new Set(['easy', 'normal', 'hard']);
@@ -123,6 +129,7 @@ export function loadOptions(storage) {
     fillBots: o.fillBots !== false,
     bgm: o.bgm !== false,
     sfx: o.sfx !== false,
+    mode: o.mode === 'ranked' ? 'ranked' : 'normal',
   };
 }
 
@@ -138,6 +145,7 @@ export function saveOptions(storage, opts) {
     fillBots: opts.fillBots !== false,
     bgm: !!opts.bgm,
     sfx: !!opts.sfx,
+    mode: opts.mode === 'ranked' ? 'ranked' : 'normal',
   });
 }
 
@@ -215,3 +223,146 @@ export function completeChal(storage, id, now = Date.now()) {
   }
   return false;
 }
+
+// ---------- Profile (ranked / season / normal stats) ----------
+// Schema follows modes-ranked 7.1 (flattened internal form). Stage 1: client-recorded, official:false.
+// { v:1, uid, level, social,
+//   ranked: { ...rating.newRanked(), queueBanUntil, leaveLog:[ms], official:false },
+//   season: { seasonId:'S0', startedAt, bestRating, bestTierId },
+//   seasonHistory: [], normal: { games, wins }, matches: [last 20 match results] }
+
+const newUid = () => {
+  try { return 'u' + [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join(''); } catch { return 'u' + Date.now().toString(16); }
+};
+
+function emptyProfile(now = Date.now()) {
+  return {
+    v: 1,
+    uid: newUid(),
+    level: 1, // TODO: no account-level system yet; used only by the (default off) ranked unlock gate
+    social: false, // TODO: social login not implemented
+    ranked: { ...newRanked(), queueBanUntil: null, leaveLog: [], official: RANKED.official },
+    season: { seasonId: RANKED.seasonId, startedAt: now, bestRating: 1000, bestTierId: null },
+    seasonHistory: [],
+    normal: { games: 0, wins: 0 },
+    matches: [],
+  };
+}
+
+export function loadProfile(storage) {
+  const p = readJSON(storage, PROFILE_KEY);
+  const base = emptyProfile();
+  if (!isObj(p) || p.v !== 1 || !isObj(p.ranked) || !isObj(p.ranked.placement)) return base;
+  const r = p.ranked;
+  const num = (x, d) => (Number.isFinite(x) ? x : d);
+  const done = !!r.placement.done;
+  const ranked = {
+    ...base.ranked,
+    rating: Math.max(0, num(r.rating, 1000)),
+    placement: { done, gamesPlayed: Math.max(0, num(r.placement.gamesPlayed, 0) | 0), gamesRequired: 5 },
+    tierIndex: done && Number.isInteger(r.tierIndex) && r.tierIndex >= 0 && r.tierIndex <= 17 ? r.tierIndex : null,
+    shieldGamesLeft: Math.max(0, num(r.shieldGamesLeft, 0) | 0),
+    gamesTotal: Math.max(0, num(r.gamesTotal, 0) | 0),
+    wins: Math.max(0, num(r.wins, 0) | 0),
+    top2: Math.max(0, num(r.top2, 0) | 0),
+    bestRating: num(r.bestRating, 1000),
+    bestTierIndex: Number.isInteger(r.bestTierIndex) ? r.bestTierIndex : null,
+    queueBanUntil: num(r.queueBanUntil, null),
+    leaveLog: Array.isArray(r.leaveLog) ? r.leaveLog.filter(Number.isFinite).slice(-10) : [],
+    official: false, // stage 1: never official, whatever is stored
+  };
+  if (done && ranked.tierIndex === null) ranked.placement.done = false;
+  return {
+    ...base,
+    uid: typeof p.uid === 'string' ? p.uid : base.uid,
+    level: Math.max(1, num(p.level, 1) | 0),
+    social: !!p.social,
+    ranked,
+    season: isObj(p.season) ? { seasonId: String(p.season.seasonId || RANKED.seasonId), startedAt: num(p.season.startedAt, base.season.startedAt), bestRating: num(p.season.bestRating, 1000), bestTierId: typeof p.season.bestTierId === 'string' ? p.season.bestTierId : null } : base.season,
+    seasonHistory: Array.isArray(p.seasonHistory) ? p.seasonHistory.slice(-20) : [],
+    normal: isObj(p.normal) ? { games: Math.max(0, num(p.normal.games, 0) | 0), wins: Math.max(0, num(p.normal.wins, 0) | 0) } : base.normal,
+    matches: Array.isArray(p.matches) ? p.matches.slice(-20) : [],
+  };
+}
+
+export function saveProfile(storage, profile) { return writeJSON(storage, PROFILE_KEY, profile); }
+
+function syncSeason(p) {
+  const r = p.ranked;
+  p.season.bestRating = Math.max(p.season.bestRating, r.bestRating);
+  if (r.bestTierIndex !== null) p.season.bestTierId = TIERS[r.bestTierIndex].id;
+}
+
+/** Normal / friend-room finished game (bots allowed, no rating change). */
+export function recordNormalGame(storage, won) {
+  const p = loadProfile(storage);
+  p.normal.games += 1;
+  if (won) p.normal.wins += 1;
+  saveProfile(storage, p);
+  return p;
+}
+
+/**
+ * Finished ranked match. `delta` computed by the caller via rating.resolveMatch.
+ * match = { matchId, seed, playerCount, rank, points, delta, ratingBefore, sim, players:[{name,rank,points,isBot}] }
+ * Returns { profile, change } (change from rating.applyRankedResult).
+ */
+export function recordRankedMatch(storage, match, now = Date.now()) {
+  const p = loadProfile(storage);
+  const { ranked, change } = applyRankedResult(p.ranked, { delta: match.delta, rank: match.rank });
+  p.ranked = { ...p.ranked, ...ranked };
+  syncSeason(p);
+  p.matches.push({
+    matchId: match.matchId, mode: 'ranked', playerCount: match.playerCount, seasonId: p.season.seasonId, seed: match.seed,
+    endedAt: now, official: false, voided: false, sim: !!match.sim,
+    // TODO: stage-1 consensus record (all uids + action log) is not stored; only the local result.
+    players: match.players, rank: match.rank, ratingBefore: match.ratingBefore, ratingAfter: ranked.rating, delta: match.delta,
+  });
+  p.matches = p.matches.slice(-20);
+  saveProfile(storage, p);
+  return { profile: p, change };
+}
+
+/** Leaving a ranked match. voided = left before round 3 ended (no game counted, flat -15). */
+export function recordRankedLeave(storage, { voided, delta, rank, matchId, seed, playerCount, ratingBefore, sim = false }, now = Date.now()) {
+  const p = loadProfile(storage);
+  let change = null;
+  if (voided) {
+    p.ranked = { ...p.ranked, ...applyVoidPenalty(p.ranked, delta) };
+  } else {
+    const o = applyRankedResult(p.ranked, { delta, rank });
+    p.ranked = { ...p.ranked, ...o.ranked };
+    change = o.change;
+  }
+  p.ranked.queueBanUntil = leaveQueueBan(p.ranked.leaveLog, now, voided) ?? p.ranked.queueBanUntil;
+  p.ranked.leaveLog = [...p.ranked.leaveLog, now].slice(-10);
+  syncSeason(p);
+  p.matches.push({ matchId, mode: 'ranked', playerCount, seasonId: p.season.seasonId, seed, endedAt: now, official: false, voided, voidReason: voided ? 'early_leave' : null, left: true, sim, rank, ratingBefore, ratingAfter: p.ranked.rating, delta });
+  p.matches = p.matches.slice(-20);
+  saveProfile(storage, p);
+  return { profile: p, change };
+}
+
+export const rankedDisplay = (profile) => displayOf(profile.ranked);
+
+// ---------- Inventory / equipped (cosmetics) ----------
+
+export function loadInventory(storage) {
+  return sanitizeInventory(readJSON(storage, INV_KEY), 0);
+}
+
+export function saveInventory(storage, inv) { return writeJSON(storage, INV_KEY, inv); }
+
+export function claimFreeItem(storage, itemId, now = Date.now()) {
+  const r = claimItem(loadInventory(storage), itemId, now);
+  if (r.ok) saveInventory(storage, r.inv);
+  return r;
+}
+
+export function equipOwnedItem(storage, itemId) {
+  const r = equipItem(loadInventory(storage), itemId);
+  if (r.ok) saveInventory(storage, r.inv);
+  return r;
+}
+
+export { newInventory };

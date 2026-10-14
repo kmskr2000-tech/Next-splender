@@ -7,11 +7,15 @@ import { BALLS, TRAINERS, evoText } from './controller.js?v=1791962003';
 import { dexSummary } from '../storage/store.js?v=1791962003';
 import { ACHIEVEMENTS } from '../data/achievements.js?v=1791962003';
 import { ROSTER, LINES } from '../data/roster.js?v=1791962003';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1791962003';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1791962003';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1791962003';
+import { displayOf } from '../meta/rating.js?v=1791962003';
 
 
 const ASSET = 'assets';
 export const ballSrc = (key) => `${ASSET}/items/${BALLS[key].file}.png`;
-const pokeSrc = (id) => `${ASSET}/creatures/${id}.png`;
+const pokeSrc = (id, mine = false) => (mine ? resolveCardSprite(id, myEquipped) : `${ASSET}/creatures/${id}.png`);
 const animSrc = (id) => `${ASSET}/creatures/anim/${id}.gif`;
 
 // AI trainer face portraits by name.
@@ -27,9 +31,22 @@ const hj = (k) => (BALLS[k].hanja ? `<i class="hj" aria-hidden="true">${BALLS[k]
 const ballImg = (key, cls = 'miniball') => `<img class="${cls}" src="${ballSrc(key)}" alt="${BALLS[key].name}">`;
 // Escape user-supplied text (multiplayer names). Card data is trusted; names are not.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const staticSprite = (card, cls = 'tiny') => `<img class="${cls}" src="${pokeSrc(card.id)}" alt="">`;
-const animSprite = (card) =>
-  `<img class="sprite" src="${animSrc(card.id)}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
+const staticSprite = (card, cls = 'tiny', mine = false) => `<img class="${cls}" src="${pokeSrc(card.id, mine)}" alt="">`;
+// Own cards with an equipped skin use the skin PNG (no gif); everything else keeps the animated gif.
+const animSprite = (card, mine = false) => {
+  const skin = mine ? pokeSrc(card.id, true) : null;
+  if (skin && skin !== pokeSrc(card.id)) return `<img class="sprite" src="${skin}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
+  return `<img class="sprite" src="${animSrc(card.id)}" onerror="this.onerror=null;this.src='${pokeSrc(card.id)}'" alt="${card.name}">`;
+};
+
+// ---------- cosmetics (my equipped set; opponents' values are a TODO until the net protocol carries them) ----------
+let myEquipped = null;
+export const setMyCosmetics = (equipped) => { myEquipped = equipped; };
+// TODO(net): opponents' avatarFrame/title/cardFrame come from SeatCosmetics (monetization 5.4) once protocol.js/session.js
+// carry them; then pass them as `frame`/`ownerEquipped` below instead of the local player's values.
+const myFrame = () => avatarFrameClass(myEquipped);
+const myCardFrame = () => cardFrameClass(myEquipped);
+const myTitleHTML = () => { const t = titleOf(myEquipped); return t ? `<span class="ttl ${t.css}">${esc(t.text)}</span>` : ''; };
 
 // 인물 설명: 라인 내 관계(relation) + 한 줄 소개(desc) from data/roster.js
 function relHTML(card) {
@@ -42,19 +59,19 @@ const tierLabel = { 1: '1단계', 2: '2단계', 3: '3단계', rare: '희귀', le
 
 // ---------- cards ----------
 
-export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableNext = false, animated = true, interactive = true } = {}) {
+export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableNext = false, animated = true, interactive = true, mine = false } = {}) {
   const bonuses = bonusList(card);
   const special = isSpecial(card);
   const cost = COLORS.filter((c) => card.cost[c])
     .map((c) => `<span class="costchip">${ballImg(c)}${card.cost[c]}</span>`).join('')
     + (special ? `<span class="costchip">${ballImg(MASTER)}1</span>` : '');
-  const classes = ['card', `b-${bonuses[0]}`, special ? card.tier : '', buyable ? 'buyable' : '', buyableNext && !buyable ? 'buyable-next' : ''].filter(Boolean).join(' ');
+  const classes = ['card', `b-${bonuses[0]}`, special ? card.tier : '', buyable ? 'buyable' : '', buyableNext && !buyable ? 'buyable-next' : '', mine ? myCardFrame() : ''].filter(Boolean).join(' ');
   const tag = special ? `<span class="tag ${card.tier}">${tierLabel[card.tier]}</span><br>` : '';
   const attrs = interactive ? `data-action="card" data-card="${card.id}" data-zone="${zone}"` : 'disabled';
   return `<button class="${classes}" ${attrs}>
     ${card.points ? `<span class="pts">${card.points}</span>` : ''}
     <span class="bonusicons">${bonuses.map((b) => ballImg(b, 'bonusdotimg')).join('')}</span>
-    ${animated ? animSprite(card) : `<img class="sprite" src="${pokeSrc(card.id)}" alt="${card.name}">`}
+    ${animated ? animSprite(card, mine) : `<img class="sprite" src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}
     <span class="nm">${tag}${card.name}</span>
     <span class="cost">${cost}</span>
     <span class="evo">${evoText(card, ctrl.cardsById)}</span>
@@ -96,12 +113,17 @@ export const setMyAvatar = (name) => { myAvatar = name; };
 /** Round avatar: trainer portrait when known, else a colored initial. */
 export function avatarHTML(name, seat = 0, { me = false, cls = '' } = {}) {
   const face = trainerFaceSrc(me ? myAvatar : name) || trainerFaceSrc(name);
-  if (face) return `<img class="av ${cls}" src="${face}" alt="">`;
+  const fr = me ? myFrame() : '';
+  if (face) return `<img class="av ${cls} ${fr}" src="${face}" alt="">`;
   const ch = esc([...String(name || '?')][0] || '?');
-  return `<span class="av ini ${cls}" style="background:${SEAT_COLORS[seat % 4]}">${ch}</span>`;
+  return `<span class="av ini ${cls} ${fr}" style="background:${SEAT_COLORS[seat % 4]}">${ch}</span>`;
 }
 
 export const AVATARS = TRAINERS;
+
+// AI seats are bots, except in the offline ranked simulation where they are labelled "시뮬 유저".
+const aiTag = (ctrl) => (ctrl.simUsers ? '<em class="botmark sim">시뮬 유저</em>' : '<em class="botmark">BOT</em>');
+const aiPrefix = (ctrl) => (ctrl.simUsers ? '시뮬 ' : 'BOT ');
 
 // ---------- top bar (round + turn timer) / side rail ----------
 
@@ -136,7 +158,7 @@ export function railHTML(ctrl) {
     const active = s.current === p.id && !ctrl.finished;
     const isMe = p.id === ctrl.human;
     return `<button class="rail-item ${active ? 'active' : ''} ${isMe ? 'me' : ''}" data-action="opp" data-id="${p.id}" aria-label="${esc(p.name)} 상세">
-      <span class="avwrap">${avatarHTML(p.name, p.id, { me: isMe })}${p.isAI ? '<em class="botmark">BOT</em>' : ''}</span>
+      <span class="avwrap">${avatarHTML(p.name, p.id, { me: isMe })}${p.isAI ? aiTag(ctrl) : ''}</span>
       <span class="rnm">${esc(p.name)}</span>
       <span class="rsc"><b>${pts}</b>/21</span>
       <span class="hpbar"><i style="width:${pct}%"></i></span>
@@ -183,7 +205,7 @@ function tableauHTML(ctrl) {
     const list = me.tableau.filter((card) => bonusList(card)[0] === c);
     if (!list.length) return '';
     return `<div class="grp g-${c}">${list.map((card) => `
-      <button class="mp ${evolvable.has(card.id) ? 'evolvable' : ''}" data-action="view-card" data-card="${card.id}">${staticSprite(card)}
+      <button class="mp ${myCardFrame()} ${evolvable.has(card.id) ? 'evolvable' : ''}" data-action="view-card" data-card="${card.id}">${staticSprite(card, 'tiny', true)}
         <span>${card.name}${card.points ? ` <i>${card.points}점</i>` : ''}</span>
         ${bonusList(card).map((b) => ballImg(b, 'mini2')).join('')}
         ${evolvable.has(card.id) ? '<span class="ev">성장 가능!</span>' : ''}</button>`).join('')}</div>`;
@@ -196,12 +218,12 @@ function handHTML(ctrl) {
   if (!me.hand.length) return '<div class="empty-note">찜한 카드 없음 (최대 3장)</div>';
   return me.hand.map((card) => `
     <button class="rsv ${ctrl.canBuy(card.id) ? 'buyable' : ctrl.canBuyAfterTake(card.id) ? 'buyable-next' : ''}" data-action="card" data-card="${card.id}" data-zone="hand" ${ctrl.isHumanTurn ? '' : 'disabled'}>
-      ${staticSprite(card)}${card.name} <small>${tierLabel[card.tier]}${card.points ? ` · ${card.points}점` : ''}</small></button>`).join('');
+      ${staticSprite(card, 'tiny', true)}${card.name} <small>${tierLabel[card.tier]}${card.points ? ` · ${card.points}점` : ''}</small></button>`).join('');
 }
 
 export function meHTML(ctrl) {
   const me = ctrl.me;
-  return `<div class="lbl">■ 내 인물 (${me.tableau.length}) · 성장 ${me.evolved.length}회</div>
+  return `<div class="lbl">■ 내 인물 (${me.tableau.length}) · 성장 ${me.evolved.length}회 ${myTitleHTML()}</div>
     <div class="mypoke">${tableauHTML(ctrl)}</div>
     <div class="lbl">■ 찜한 카드 (${me.hand.length}/3)</div>
     <div class="reserved">${handHTML(ctrl)}</div>`;
@@ -290,7 +312,7 @@ export function aiToastHTML(ctrl) {
     const to = ctrl.cardsById.get(ev.to);
     body = from && to ? `${staticSprite(from)} → ${staticSprite(to)}<b>성장!</b>` : '성장!';
   } else return '';
-  return `<div class="aitoast"><span class="who">${p.isAI ? 'BOT ' : ''}${esc(p.name)}</span><span class="what">${body}</span></div>`;
+  return `<div class="aitoast"><span class="who">${p.isAI ? aiPrefix(ctrl) : ''}${esc(p.name)}</span><span class="what">${body}</span></div>`;
 }
 
 // ---------- sheet + overlays ----------
@@ -309,7 +331,7 @@ function oppSheetHTML(p, ctrl) {
     ? p.hand.map((card) => `<button class="orsv" data-action="view-card" data-card="${card.id}" data-from="opp" data-pid="${p.id}">${staticSprite(card)}${card.name} <small>${tierLabel[card.tier]}${card.points ? ` · ${card.points}점` : ''}</small></button>`).join('')
     : '<div class="empty-note">없음</div>';
   return `<div class="sheet-back" data-action="close"></div><div class="sheet wide">
-    <div class="sheet-title">${avatarHTML(p.name, p.id, { me: p.id === ctrl.human, cls: 'md' })}${p.isAI ? 'BOT ' : ''}${esc(p.name)} <small>· ${getPoints(p)}점 · 성장 ${p.evolved.length}회</small></div>
+    <div class="sheet-title">${avatarHTML(p.name, p.id, { me: p.id === ctrl.human, cls: 'md' })}${p.isAI ? aiPrefix(ctrl) : ''}${esc(p.name)} <small>· ${getPoints(p)}점 · 성장 ${p.evolved.length}회</small></div>
     <div class="olbl">■ 보너스 (할인)</div>
     <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${hj(c)}${b[c]}</span>`).join('')}</div>
     <div class="olbl">■ 가진 구슬 (${tokenCount(p)}/10)</div>
@@ -348,7 +370,7 @@ export function sheetHTML(ctrl) {
     const backBtn = sh.from && sh.from.kind === 'opp'
       ? `<button class="btn alt" data-action="view-back">← 상대 정보로</button>` : '';
     return `<div class="sheet-back" data-action="close"></div><div class="sheet">
-      <div class="sheet-card">${cardHTML(card, ctrl, { interactive: false })}</div>
+      <div class="sheet-card">${cardHTML(card, ctrl, { interactive: false, mine: !(sh.from && sh.from.kind === 'opp') && ctrl.me.tableau.some((c) => c.id === card.id) })}</div>
       <div class="sheet-info">
         <div class="sheet-title">${card.name}</div>
         <div class="paylbl">보너스</div>
@@ -382,7 +404,7 @@ export function sheetHTML(ctrl) {
   const masterLeft = ctrl.state.supply[MASTER] > 0;
   const reserveLabel = masterLeft ? '찜하기 (+여의주)' : '찜하기 (여의주 품절)';
   return `<div class="sheet-back" data-action="close"></div><div class="sheet">
-    <div class="sheet-card">${cardHTML(card, ctrl, { interactive: false })}</div>
+    <div class="sheet-card">${cardHTML(card, ctrl, { interactive: false, mine: inHand })}</div>
     <div class="sheet-info">
       <div class="sheet-title">${card.name}</div>
       <div class="paylbl">내가 낼 구슬 (보너스 할인 적용)</div>
@@ -484,14 +506,60 @@ export function achvHTML(unlocked) {
 
 // ---------- lobby / matching / result screens ----------
 
-export function homeHTML({ options, dex, notice = '' }) {
+/** Tier badge: text + color + number + shape (never color alone). `art` is an empty slot for the badge image. */
+export function tierBadgeHTML(disp, { size = '' } = {}) {
+  const un = RANKED.official ? '' : ' unofficial';
+  if (disp.placing) {
+    return `<span class="tbadge placing ${size}${un}" aria-label="배치 ${disp.progress}/${disp.of}"><b class="tb-num">?</b><span class="tb-name">배치 ${disp.progress}/${disp.of}</span></span>`;
+  }
+  const t = disp.tier;
+  return `<span class="tbadge tg-${t.grade} ${t.half} ${size}${un}" data-tier="${t.id}" aria-label="${t.name}">`
+    + `<span class="tb-art" data-art="assets/tiers/${t.id}.png"></span><b class="tb-num">${t.grade}</b><span class="tb-name">${t.name}</span></span>`;
+}
+
+const fmtWait = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+
+/** Allowed rating spread by queue wait time (modes-ranked 1.2.1) -- shown as text only; matching itself is server-side later. */
+export function rangeNote(sec) {
+  if (sec < 15) return '비슷한 품계의 도사를 찾는 중';
+  if (sec < 30) return '찾는 범위를 조금 넓히는 중';
+  if (sec < 60) return '찾는 범위를 넓히는 중';
+  if (sec < 120) return '품계 차이를 더 넓혀 찾는 중';
+  return '품계 제한 없이 찾는 중 (최대 3단계 차이)';
+}
+
+function rankedPanelHTML({ profile, gate, ban, rankedDisp }) {
+  const lock = !gate.unlocked;
+  const status = rankedDisp.placing
+    ? `<div class="rk-rp">배치고사 <b>${rankedDisp.progress}/${rankedDisp.of}</b><small>5판 뒤 첫 품계가 정해져요</small></div>`
+    : `<div class="rk-rp"><b>${rankedDisp.rp}</b> RP<small>${rankedDisp.tier.name}${rankedDisp.shield ? ` · 승급 보호 ${rankedDisp.shield}판` : ''}</small></div>`;
+  const gateHTML = gate.enforced && !gate.met
+    ? `<ul class="gate">${gate.items.map((i) => `<li class="${i.ok ? 'ok' : 'no'}">${i.ok ? '✔' : '🔒'} ${i.label} ${i.bool ? '' : `${i.cur}/${i.need}`}</li>`).join('')}</ul>` : '';
+  return `<div class="rk-card">
+      <div class="rk-head">${tierBadgeHTML(rankedDisp, { size: 'lg' })}${status}</div>
+      <div class="season-tag">${SEASON_LABEL}</div>
+      <ul class="rk-rules"><li>4인 고정 · 봇 채움 없음</li><li>정원이 찰 때까지 계속 대기 (취소 가능)</li><li>턴 제한 ${RANKED.turnLimitMs / 1000}초 · 도중 이탈은 감점</li></ul>
+      ${gateHTML}
+      ${ban ? `<p class="sheet-p warn">큐 제한 중 · ${ban}분 남음</p>` : ''}
+    </div>
+    <button class="btn bigstart ranked" data-action="match" ${lock || ban ? 'disabled' : ''}>${lock ? '🔒 랭킹전 잠김' : '랭킹전 시작'}<small>4인 대전 · 시범(비공식)</small></button>`;
+}
+
+export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
   const name = esc(options.playerName || '도사');
+  const ranked = options.mode === 'ranked';
+  const rankedDisp = displayOf(profile.ranked);
+  const normalPanel = `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
+        `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
+      <button class="btn bigstart" data-action="match">매칭 시작<small>${size}인 대전 · 랭크 점수 변동 없음</small></button>
+      <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span>
+        <span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>`;
   return `<div class="overlay screen home">
     <div class="home-top">
       <button class="profile-chip px" data-action="profile">${avatarHTML(options.avatar, 0, { me: true, cls: 'sm' })}
-        <span><b>${name}</b><small>${g.played}판 ${g.won}승</small></span></button>
+        <span><b>${name}</b>${myTitleHTML()}<small>${g.played}판 ${g.won}승</small></span>${tierBadgeHTML(rankedDisp, { size: 'sm' })}</button>
       <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
     </div>
     <div class="home-hero">
@@ -501,17 +569,19 @@ export function homeHTML({ options, dex, notice = '' }) {
     </div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
     <div class="home-match">
-      <div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
-        `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
-      <button class="btn bigstart" data-action="match">매칭 시작<small>${size}인 대전</small></button>
-      <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span>
-        <span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>
+      <div class="modetabs" role="tablist" aria-label="모드 선택">
+        <button class="modetab ${ranked ? '' : 'sel'}" role="tab" data-action="mode" data-mode="normal">일반전</button>
+        <button class="modetab ${ranked ? 'sel' : ''}" role="tab" data-action="mode" data-mode="ranked">랭킹전${gate.unlocked ? '' : ' 🔒'}</button>
+      </div>
+      ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : normalPanel}
+      <div class="friend-row"><span class="nonrank">친구 방 · 비랭크</span>
       <div class="btnrow"><button class="btn alt" data-action="room-create">친구와 방 만들기</button>
-      <button class="btn alt" data-action="room-join">코드로 참가</button></div>
+      <button class="btn alt" data-action="room-join">코드로 참가</button></div></div>
     </div>
     <nav class="tabbar">
       <button data-action="dex"><span>📖</span>인물록</button>
       <button data-action="achv"><span>🏆</span>업적</button>
+      <button data-action="shop"><span>🏮</span>상점</button>
       <button data-action="rules"><span>📜</span>룰</button>
       <button data-action="options"><span>⚙</span>설정</button>
     </nav>
@@ -520,27 +590,38 @@ export function homeHTML({ options, dex, notice = '' }) {
 
 /**
  * Matching queue / friend room.
- * v: { title, size, slots: [{name, bot, me}], countdown (sec|null), code, host, fillBots, notice, searching }
+ * v: { title, size, slots: [{name, bot, sim, me}], countdown (sec|null), code, host, fillBots, notice, starting,
+ *      ranked, isRoom, waited (sec), tierDisp }
  */
 export function queueHTML(v) {
   const slots = Array.from({ length: v.size }, (_, i) => {
     const sl = v.slots[i];
     if (!sl) return `<div class="slot empty"><span class="av ini wait">?</span><span class="slotnm">대기 중…</span></div>`;
+    const mark = sl.bot ? '<em class="botmark">BOT</em>' : sl.sim ? '<em class="botmark sim">시뮬 유저</em>' : sl.me ? '<em class="memark">나</em>' : '';
     return `<div class="slot ${sl.me ? 'me' : ''}">${avatarHTML(sl.name, i, { me: sl.me })}
-      <span class="slotnm">${esc(sl.name)}</span>${sl.bot ? '<em class="botmark">BOT</em>' : sl.me ? '<em class="memark">나</em>' : ''}</div>`;
+      <span class="slotnm">${esc(sl.name)}</span>${mark}</div>`;
   }).join('');
   const have = v.slots.length;
-  const cd = v.countdown != null && v.fillBots
-    ? `<div class="cd"><b>${v.countdown}</b><small>초 후 빈 자리를 봇으로 채워요</small></div>`
-    : `<div class="cd"><b class="dots">…</b><small>${v.fillBots ? '' : '봇 채움 꺼짐 · '}상대를 기다리는 중</small></div>`;
+  let cd;
+  if (v.ranked) {
+    cd = `<div class="cd"><b>${fmtWait(v.waited ?? 0)}</b><small>${rangeNote(v.waited ?? 0)} · 봇 채움 없음</small></div>`;
+  } else if (v.countdown != null && v.fillBots) {
+    cd = `<div class="cd"><b>${v.countdown}</b><small>초 후 빈 자리를 봇으로 채워요</small></div>`;
+  } else {
+    cd = `<div class="cd"><b class="dots">…</b><small>${v.fillBots ? '' : '봇 채움 꺼짐 · '}상대를 기다리는 중</small></div>`;
+  }
+  const tag = v.ranked ? `<div class="modetag ranked">랭킹전 · ${SEASON_LABEL}</div>`
+    : v.isRoom ? '<div class="modetag">친구 방 · 비랭크</div>' : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
   return `<div class="overlay screen queue">
     <div class="title big">${esc(v.title)}<small>${have}/${v.size}명</small></div>
+    ${tag}
+    ${v.ranked && v.tierDisp ? `<div class="qtier">${tierBadgeHTML(v.tierDisp)}</div>` : ''}
     ${v.notice ? `<p class="sheet-p warn">${esc(v.notice)}</p>` : ''}
     ${v.code ? `<div class="shortcode"><span>방 코드 (친구에게 알려주세요)</span><b>${esc(v.code)}</b></div>` : ''}
     <div class="slots n${v.size}">${slots}</div>
     ${v.starting ? '<div class="cd"><b>GO!</b><small>게임에 입장하는 중</small></div>' : cd}
     <div class="btnrow">
-      ${v.host && !v.starting ? `<button class="btn primary" data-action="room-start" ${have < 2 && !v.fillBots ? 'disabled' : ''}>${have < v.size ? '봇 채우고 시작' : '게임 시작'}</button>` : ''}
+      ${v.host && !v.starting && !v.ranked ? `<button class="btn primary" data-action="room-start" ${have < 2 && !v.fillBots ? 'disabled' : ''}>${have < v.size ? '봇 채우고 시작' : '게임 시작'}</button>` : ''}
       <button class="btn ghost" data-action="queue-cancel">${v.isRoom ? '방 나가기' : '매칭 취소'}</button>
     </div>
   </div>`;
@@ -588,21 +669,98 @@ export function optionsHTML(options, inGame = false) {
   </div></div>`;
 }
 
-export function endHTML(ctrl) {
+function rpResultHTML(res) {
+  if (!res) return '';
+  if (res.mode === 'private') return '<div class="rpblock plain">친구 방 · 비랭크 판이라 점수 변동이 없어요.</div>';
+  if (res.mode !== 'ranked') return '<div class="rpblock plain">일반전 · 랭크 점수 변동이 없어요.</div>';
+  const c = res.change;
+  const label = `<div class="season-tag">${SEASON_LABEL}</div>`;
+  if (c.wasPlacing && !c.placementDone) {
+    return `<div class="rpblock">${label}<div class="rp-line">${tierBadgeHTML(c.after)}<span>배치고사 ${c.after.progress}/${c.after.of} 기록 완료</span></div>
+      <small class="rp-note">배치 중에는 RP와 품계가 공개되지 않아요.</small></div>`;
+  }
+  const sign = c.delta > 0 ? 'pos' : c.delta < 0 ? 'neg' : '';
+  const d = c.delta > 0 ? `+${c.delta}` : `${c.delta}`;
+  const from = c.before.placing ? null : c.before.rp;
+  const toPct = c.after.pct ?? 0;
+  const fromPct = c.before.placing ? 0 : (c.before.pct ?? 0);
+  let event = '';
+  if (c.placementDone) event = `<div class="promo up">배치 완료! 시작 품계 <b>${c.after.tier.name}</b></div>`;
+  else if (c.promoted) event = `<div class="promo up">승급! ${c.before.tier.name} → <b>${c.after.tier.name}</b><small>3판간 강등 보호</small></div>`;
+  else if (c.demoted) event = `<div class="promo down">강등… ${c.before.tier.name} → <b>${c.after.tier.name}</b></div>`;
+  else if (c.shielded) event = '<div class="promo shield">승급 보호 중이라 품계는 유지돼요</div>';
+  return `<div class="rpblock">${label}
+    <div class="rp-line">${tierBadgeHTML(c.after)}<span class="rp-num">${from !== null ? `${from} → ` : ''}<b>${c.after.rp}</b> RP <em class="rp-d ${sign}">${d}</em></span></div>
+    <div class="rpbar" role="progressbar" aria-valuenow="${Math.round(toPct)}" aria-valuemin="0" aria-valuemax="100"><i style="--from:${fromPct}%;--to:${toPct}%"></i></div>
+    ${event}</div>`;
+}
+
+export function leaveConfirmHTML({ voidLeave }) {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">랭킹전에서 나갈까요?</div>
+    <p class="sheet-p warn">${voidLeave
+      ? '아직 초반이라 판이 무효 처리돼요. 다른 도사의 점수는 그대로지만 나는 <b>-15 RP</b>와 10분간 큐 제한을 받아요.'
+      : '지금 나가면 최하위로 처리되고 <b>-10 RP</b> 추가 감점을 받아요.'}</p>
+    <div class="btnrow"><button class="btn ghost" data-action="leave-cancel">계속하기</button>
+    <button class="btn danger" data-action="leave-confirm">나가기</button></div>
+  </div></div>`;
+}
+
+export function endHTML(ctrl, res = null) {
   const s = ctrl.state;
   const rows = s.ranking.map((r) => {
     const p = s.players[r.player];
     const isMe = p.id === ctrl.human;
     return `<tr class="${r.rank === 1 ? 'win' : ''} ${isMe ? 'me' : ''}"><td class="rk">${r.rank}</td>
-      <td class="who">${avatarHTML(p.name, p.id, { me: isMe, cls: 'sm' })}<span>${p.isAI ? 'BOT ' : ''}${esc(p.name)}</span></td>
+      <td class="who">${avatarHTML(p.name, p.id, { me: isMe, cls: 'sm' })}<span>${p.isAI ? (ctrl.simUsers ? '<em class="botmark sim">시뮬 유저</em> ' : 'BOT ') : ''}${esc(p.name)}</span></td>
       <td>${r.points}점</td><td>성장 ${r.evolutions}</td><td>${r.pokemon}명</td></tr>`;
   }).join('');
   const myRank = s.ranking.find((r) => r.player === ctrl.human)?.rank;
+  const again = res?.mode === 'ranked' ? '다시 랭킹전' : '다시 매칭';
   return `<div class="overlay screen result"><div class="panel">
     <div class="title big">${myRank === 1 ? '우승!' : `${myRank}위`}<small>${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : '최종 순위'}</small></div>
     <table class="rank">${rows}</table>
+    ${rpResultHTML(res)}
     <p class="sheet-p">동점은 성장 횟수가 많은 쪽 → 영입한 인물 수가 적은 쪽이 이겨요.</p>
     <div class="btnrow"><button class="btn ghost" data-action="restart">홈으로</button>
-    <button class="btn primary" data-action="rematch">다시 매칭</button></div>
+    <button class="btn primary" data-action="rematch">${again}</button></div>
+  </div></div>`;
+}
+
+// ---------- shop (skeleton: free claim + equip only; paid items show "준비 중") ----------
+
+function itemPreview(it, inv) {
+  if (it.type === 'avatarFrame') return `<span class="av ini sm pv ${it.css}" style="background:var(--obang-blue)">도</span>`;
+  if (it.type === 'cardFrame') return `<span class="pv-card ${it.css}"></span>`;
+  if (it.type === 'title') return `<span class="ttl pv-ttl ${it.css}">${esc(itemName(it))}</span>`;
+  if (it.type === 'emote') return `<span class="pv-emote">${it.glyph}</span>`;
+  return '<span class="pv-emote">🎴</span>';
+}
+
+export function shopHTML({ inv, tab, toast = '' }) {
+  const items = CATALOG.filter((i) => i.type === tab);
+  const rows = items.map((it) => {
+    const own = owns(inv, it.id);
+    const eq = own && isEquipped(inv, it);
+    const free = isFree(it);
+    const price = free ? '무료' : `엽전 ${it.price.amount}`;
+    let btn;
+    if (!own && free) btn = `<button class="btn primary" data-action="shop-claim" data-item="${it.id}">받기</button>`;
+    else if (!own) btn = '<button class="btn ghost" disabled>준비 중</button>';
+    else if (eq && (it.type === 'emote' || it.type === 'cardSkin')) btn = `<button class="btn ghost" data-action="shop-equip" data-item="${it.id}">해제</button>`;
+    else if (eq) btn = '<button class="btn ghost" disabled>장착 중</button>';
+    else btn = `<button class="btn alt" data-action="shop-equip" data-item="${it.id}">장착</button>`;
+    return `<div class="shopitem ${own ? 'own' : ''} ${eq ? 'eq' : ''}">
+      <div class="si-pv">${itemPreview(it, inv)}</div>
+      <div class="si-info"><b>${esc(itemName(it))}</b><small>${esc(it.description.ko)}</small>
+        <span class="si-meta"><em class="rar ${it.rarity}">${it.rarity}</em><span class="si-price ${free ? 'free' : ''}">${own ? '보유' : price}</span></span></div>
+      <div class="si-btn">${btn}</div></div>`;
+  }).join('');
+  return `<div class="overlay"><div class="panel shoppanel">
+    <div class="title big">상점<small>엽전 ${inv.wallet.yeopjeon} · 외형만 바뀌고 게임 규칙은 그대로예요</small></div>
+    <div class="shoptabs" role="tablist">${CATEGORIES.map((c) => `<button class="shoptab ${c.id === tab ? 'sel' : ''}" role="tab" data-action="shop-tab" data-tab="${c.id}">${c.label}</button>`).join('')}</div>
+    ${toast ? `<p class="sheet-p shoptoast">${esc(toast)}</p>` : ''}
+    <div class="shoplist">${rows || '<div class="empty-note">준비 중이에요</div>'}</div>
+    <div class="btnrow"><button class="btn primary" data-action="shop-close">닫기</button></div>
   </div></div>`;
 }
