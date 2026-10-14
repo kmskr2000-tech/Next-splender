@@ -6,7 +6,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --ink: #0a0a12; --bg: #1a1a2e; --panel: #24243c; --gold: #fbbf24; --muted: #8b8ba3;
-  --monster: #ef4444; --super: #3b82f6; --hyper: #3f3f46; --heal: #ec4899; --quick: #eab308; --master: #8b5cf6;
+  --monster: #D9453B; --super: #1F2F5C; --hyper: #D9A633; --heal: #3FA56B; --quick: #E6E4DA; --master: #9FE8F0;
+  --super-edge: #6D8FD6; /* 水 is dark: needs light edge on dark panels */
 }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -61,9 +62,9 @@ img { image-rendering: pixelated; }
 .pip { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 14px; height: 14px; font-size: 9px; color: #fff; border: 1px solid var(--ink); padding: 0 2px; }
 .pips.big { justify-content: flex-start; gap: 6px; }
 .pips.big .pip { height: 20px; min-width: 34px; font-size: 12px; gap: 3px; border-width: 2px; }
-.d-monster { background: var(--monster); } .d-super { background: var(--super); }
-.d-hyper { background: var(--hyper); } .d-heal { background: var(--heal); }
-.d-quick { background: var(--quick); color: #1a1a2e; } .d-master { background: var(--master); }
+.d-monster { background: var(--monster); } .d-super { background: var(--super); border-color: var(--super-edge); }
+.d-hyper { background: var(--hyper); color: #1a1a2e; } .d-heal { background: var(--heal); }
+.d-quick { background: var(--quick); color: #1a1a2e; } .d-master { background: var(--master); color: #1a1a2e; }
 
 /* ---------- board ---------- */
 .board { padding: 2px 12px; }
@@ -148,8 +149,8 @@ button.card:not(:disabled):active { transform: translate(3px, 3px); box-shadow: 
 .mytk span { font-size: 12px; color: #fff; }
 .mypoke { display: flex; flex-direction: column; gap: 4px; }
 .grp { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 5px; border-left: 5px solid #666; }
-.g-monster { border-left-color: var(--monster); } .g-super { border-left-color: var(--super); }
-.g-hyper { border-left-color: #71717a; } .g-heal { border-left-color: var(--heal); } .g-quick { border-left-color: var(--quick); }
+.g-monster { border-left-color: var(--monster); } .g-super { border-left-color: var(--super-edge); }
+.g-hyper { border-left-color: var(--hyper); } .g-heal { border-left-color: var(--heal); } .g-quick { border-left-color: var(--quick); }
 .mp {
   font-size: 10px; background: #1e2b24; border: 2px solid var(--ink); padding: 2px 5px;
   display: flex; align-items: center; gap: 4px; flex-wrap: wrap;

@@ -46,7 +46,7 @@ export const CHALLENGES = [
   {
     id: 'ch5',
     name: '전설 사냥',
-    desc: '25턴 안에 희귀·전설 2장 잡기',
+    desc: '25턴 안에 희귀·전설 2장 모시기',
     goal: { special: 2 },
     maxTurns: 25,
     difficulty: 'normal',
@@ -55,7 +55,7 @@ export const CHALLENGES = [
   },
   {
     id: 'ch6',
-    name: '챔피언의 증명',
+    name: '대도사의 증명',
     desc: '어려움 AI 상대로 20턴 안에 12점 달성하기',
     goal: { points: 12 },
     maxTurns: 20,

@@ -1,4 +1,4 @@
-// Pokemon Splendor rule engine. Pure functions over a plain-JSON state.
+// Ohaeng Splendor rule engine. Pure functions over a plain-JSON state.
 // applyAction never mutates its input: it returns a new state (cheap lookahead for AI).
 
 import {

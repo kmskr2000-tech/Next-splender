@@ -63,7 +63,7 @@ export class NetSession {
   }
 
   cleanName(n) {
-    return String(n || '').trim().slice(0, 12) || '트레이너';
+    return String(n || '').trim().slice(0, 12) || '도사';
   }
 
   makeRoom() {
@@ -175,7 +175,7 @@ export class NetSession {
 
   // AI seat names: trainer names not taken by humans.
   pickAiNames() {
-    const pool = ['지우', '이슬', '웅이', '로이'].filter((n) => !this.names.includes(n));
+    const pool = ['하늘', '솔이', '바우', '달래'].filter((n) => !this.names.includes(n));
     const out = [];
     for (let i = 0; i < this.aiCount; i++) out.push(pool[i] || `AI ${i + 1}`);
     return out;

@@ -9,28 +9,28 @@ import {
 import { chooseAction } from '../ai/heuristic.js?v=1791962003';
 
 export const BALLS = {
-  monster: { file: 'monster', name: '몬스터볼', short: '몬스터' },
-  super: { file: 'super', name: '슈퍼볼', short: '슈퍼' },
-  hyper: { file: 'hyper', name: '하이퍼볼', short: '하이퍼' },
-  heal: { file: 'heal', name: '힐볼', short: '힐' },
-  quick: { file: 'quick', name: '퀵볼', short: '퀵' },
-  master: { file: 'master', name: '마스터볼', short: '마스터' },
+  monster: { file: 'monster', name: '화령주', short: '화' },
+  super: { file: 'super', name: '수령주', short: '수' },
+  hyper: { file: 'hyper', name: '토령주', short: '토' },
+  heal: { file: 'heal', name: '목령주', short: '목' },
+  quick: { file: 'quick', name: '금령주', short: '금' },
+  master: { file: 'master', name: '여의주', short: '여의' },
 };
 
-export const TRAINERS = ['지우', '이슬', '웅이', '로이'];
+export const TRAINERS = ['하늘', '솔이', '바우', '달래'];
 
 const ERROR_TEXT = {
-  bad_ball_count: '서로 다른 볼 3개를 골라주세요 (남은 종류가 적으면 그만큼만).',
-  supply_empty: '공급처에 없는 볼이에요.',
-  supply_too_low: '같은 볼 2개는 공급처에 4개 이상 남아야 해요.',
+  bad_ball_count: '서로 다른 령주 3개를 골라주세요 (남은 종류가 적으면 그만큼만).',
+  supply_empty: '공급처에 없는 령주가에요.',
+  supply_too_low: '같은 령주 2개는 공급처에 4개 이상 남아야 해요.',
   hand_full: '찜한 카드는 최대 3장이에요.',
   cannot_reserve: '희귀·전설 카드는 찜할 수 없어요.',
   deck_empty: '덱에 카드가 없어요.',
-  cannot_afford: '볼이 부족해서 잡을 수 없어요.',
-  master_required: '희귀·전설은 마스터볼이 1개 필요해요.',
+  cannot_afford: '령주가 부족해서 모실 수 없어요.',
+  master_required: '희귀·전설은 여의주가 1개 필요해요.',
   bad_discard_count: '반환할 개수가 맞지 않아요.',
   discard_full: '필요한 개수를 다 골랐어요. 바꾸려면 − 로 줄이세요.',
-  discard_owned: '가진 볼보다 많이 반환할 수 없어요.',
+  discard_owned: '가진 령주보다 많이 반환할 수 없어요.',
   cannot_evolve: '진화할 수 없어요.',
   pass_not_allowed: '아직 할 수 있는 행동이 있어요.',
 };
@@ -53,7 +53,7 @@ function secretPersonalities(seed, playerCount) {
 // `resume` ({ game, log }) restores a saved game instead of dealing a new one.
 // `hooks.onCatch(cardId, kind)` fires for the human's captures/evolutions, `hooks.onChange()` after
 // every accepted action, `hooks.onEnd(won)` once when the game finishes (persistence lives outside).
-export function createController({ cards, seed, humanName = '나', aiNames = ['지우', '이슬', '웅이'], resume = null, hooks = {}, difficulty = 'normal', challenge = null, mp = null }) {
+export function createController({ cards, seed, humanName = '나', aiNames = ['하늘', '솔이', '바우'], resume = null, hooks = {}, difficulty = 'normal', challenge = null, mp = null }) {
   const cardsById = new Map(cards.map((c) => [c.id, c]));
   // mp: { names: [...humanNames], me: index, aiNames: [...] } — multiplayer.
   // Humans first, then AI seats (acted by the host, relayed to guests).
@@ -293,7 +293,7 @@ export function createController({ cards, seed, humanName = '나', aiNames = ['�
 
 export function evoText(card, cardsById) {
   if (!card.evolvesTo) {
-    if (card.tier === 'rare' || card.tier === 'legend') return '보너스 2개 · 마스터볼 필수';
+    if (card.tier === 'rare' || card.tier === 'legend') return '보너스 2개 · 여의주 필수';
     return card.tier === 3 ? '최종 진화' : '진화 없음';
   }
   const next = cardsById.get(card.evolvesTo);
@@ -308,8 +308,8 @@ export function describeEvent(ev, ctrl) {
   switch (ev.type) {
     case 'takeBalls': return `${who}: ${ev.colors.map((c) => BALLS[c].name).join('·')} 가져감`;
     case 'takeTwo': return `${who}: ${BALLS[ev.color].name} 2개 가져감`;
-    case 'reserve': return `${who}: ${ev.source === 'deck' ? '덱 위 카드를' : `${name(ev.cardId)}을(를)`} 찜${ev.gotMaster ? ' (마스터볼 +1)' : ' (마스터볼 품절)'}`;
-    case 'buy': return `${who}: ${name(ev.cardId)} 잡음!`;
+    case 'reserve': return `${who}: ${ev.source === 'deck' ? '덱 위 카드를' : `${name(ev.cardId)}을(를)`} 찜${ev.gotMaster ? ' (여의주 +1)' : ' (여의주 품절)'}`;
+    case 'buy': return `${who}: ${name(ev.cardId)} 모심!`;
     case 'discard': return `${who}: ${balls(ev.tokens)} 반환`;
     case 'evolve': return `${who}: ${name(ev.from)} → ${name(ev.to)} 진화!`;
     case 'pass': return `${who}: 차례 넘김`;

@@ -1,4 +1,4 @@
-// localStorage persistence: Pokedex (cumulative caught record) and the in-progress game save.
+// localStorage persistence: Shinsu-rok (collection log) (cumulative caught record) and the in-progress game save.
 // Storage is injected so tests can use a Map-backed fake; every access is try/catch'd because
 // localStorage can throw (private mode, blocked site data) and the game must still run without it.
 
@@ -25,7 +25,7 @@ function writeJSON(storage, key, value) {
 
 const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 
-// ---------- Pokedex ----------
+// ---------- Shinsu-rok (collection log) ----------
 // { v:1, caught: { [cardId]: { n, first, last, evolved } }, games: { played, won } }
 
 const emptyDex = () => ({ v: 1, caught: {}, games: { played: 0, won: 0 } });

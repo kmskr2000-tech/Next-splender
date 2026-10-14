@@ -55,7 +55,7 @@ export const sfx = {
   click() { seq([[F.C5, 0.05]], 'square', 0.06, 0.5); },
   // Take balls
   takeBall() { seq([[F.E4, 0.06], [F.G4, 0.08]], 'square', 0.07, 0.7); },
-  // Catch a pokemon: happy ascending arpeggio
+  // Catch a divine beast: happy ascending arpeggio
   catch() { seq([[F.C4, 0.08], [F.E4, 0.08], [F.G4, 0.08], [F.C5, 0.15]], 'square', 0.09, 0.9); },
   // Reserve: soft chime
   reserve() { seq([[F.A4, 0.1], [F.E5, 0.15]], 'sine', 0.1, 0.8); },

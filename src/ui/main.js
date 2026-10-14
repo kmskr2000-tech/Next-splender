@@ -55,7 +55,7 @@ import { browserStorage, loadDex, loadSave, saveGame, clearSave, recordCatch, re
 
 const params = new URLSearchParams(location.search);
 const AI_DELAY = params.has('fast') ? 0 : 1600; // ?fast=1 skips the pacing delay (tests)
-const AI_NAMES = ['지우', '이슬', '웅이', '로이'];
+const AI_NAMES = ['하늘', '솔이', '바우', '달래'];
 
 const regions = {
   header: ['header', V.headerHTML],
@@ -409,7 +409,7 @@ function savePlayerName(name) {
     options.playerName = clean;
     saveOptions(storage, options);
   }
-  return clean || '트레이너';
+  return clean || '도사';
 }
 
 const netInputVal = (id) => document.getElementById(id)?.value ?? '';

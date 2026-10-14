@@ -17,10 +17,10 @@ const animSrc = (id) => `${ASSET}/creatures/anim/${id}.gif`;
 
 // AI trainer face portraits by name.
 const TRAINER_FACE = {
-  '지우': 'trainer-1',
-  '이슬': 'trainer-2',
-  '웅이': 'trainer-3',
-  '로이': 'trainer-4',
+  '하늘': 'trainer-1',
+  '솔이': 'trainer-2',
+  '바우': 'trainer-3',
+  '달래': 'trainer-4',
 };
 export const trainerFaceSrc = (name) => TRAINER_FACE[name] ? `${ASSET}/trainers/${TRAINER_FACE[name]}.webp` : null;
 
@@ -127,9 +127,9 @@ export function opponentsHTML(ctrl) {
       <div class="sc">${getPoints(p)}</div>
       <div class="olbl2">보너스(할인)</div>
       <div class="pips">${bonusPips(p)}</div>
-      <div class="olbl2">가진 볼</div>
+      <div class="olbl2">가진 령주</div>
       <div class="otks2">${tk || '<span class="none">없음</span>'}</div>
-      <div class="meta">찜 ${p.hand.length} · 포켓몬 ${p.tableau.length}마리<br><span class="more">눌러서 자세히</span></div>
+      <div class="meta">찜 ${p.hand.length} · 신수 ${p.tableau.length}마리<br><span class="more">눌러서 자세히</span></div>
     </button>`;
   }).join('');
 }
@@ -165,7 +165,7 @@ function tokensHTML(ctrl) {
 
 function tableauHTML(ctrl) {
   const me = ctrl.me;
-  if (!me.tableau.length) return '<div class="empty-note">아직 잡은 포켓몬이 없어요</div>';
+  if (!me.tableau.length) return '<div class="empty-note">아직 모신 신수가 없어요</div>';
   const evolvable = ctrl.evolvableIds();
   const groups = COLORS.map((c) => {
     const list = me.tableau.filter((card) => bonusList(card)[0] === c);
@@ -193,14 +193,14 @@ export function meHTML(ctrl) {
   const tc = tokenCount(me);
   return `<div class="row1">
       <div class="who">${me.name}<span class="sc">${getPoints(me)}점</span></div>
-      <div class="tkcount ${tc >= 10 ? 'full' : ''}">볼 ${tc}/10</div>
+      <div class="tkcount ${tc >= 10 ? 'full' : ''}">령주 ${tc}/10</div>
       <div class="evcount">진화 ${me.evolved.length}회</div>
     </div>
     <div class="lbl">■ 보너스 (할인)</div>
     <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</div>
-    <div class="lbl">■ 보유 볼</div>
+    <div class="lbl">■ 보유 령주</div>
     <div class="mytokens">${tokensHTML(ctrl)}</div>
-    <div class="lbl">■ 내 포켓몬 (${me.tableau.length})</div>
+    <div class="lbl">■ 내 신수 (${me.tableau.length})</div>
     <div class="mypoke">${tableauHTML(ctrl)}</div>
     <div class="lbl">■ 찜한 카드 (${me.hand.length}/3)</div>
     <div class="reserved">${handHTML(ctrl)}</div>`;
@@ -218,7 +218,7 @@ export function actionBarHTML(ctrl) {
   if (s.phase === PHASES.DISCARD) {
     const need = ctrl.discardNeed;
     const have = ctrl.discardCount();
-    return `<div class="hint">볼이 10개를 넘었어요. 내 볼을 눌러 <b>${need}개</b> 반환하세요. 누를 때마다 +1, 빨간 − 로 되돌려요. (${have}/${need})</div>${err}
+    return `<div class="hint">령주가 10개를 넘었어요. 내 령주를 눌러 <b>${need}개</b> 반환하세요. 누를 때마다 +1, 빨간 − 로 되돌려요. (${have}/${need})</div>${err}
       <div class="btnrow"><button class="btn ghost" data-action="clear">초기화</button>
       <button class="btn primary" data-action="confirm-discard" ${have === need ? '' : 'disabled'}>${need}개 반환</button></div>`;
   }
@@ -238,12 +238,12 @@ export function actionBarHTML(ctrl) {
   const n = ctrl.balls.length;
   const valid = ctrl.pendingValid();
   const pe = ctrl.pendingError();
-  let hint = '볼을 고르거나, 카드를 눌러 잡기·찜하기를 하세요.';
+  let hint = '령주를 고르거나, 카드를 눌러 모시기·찜하기를 하세요.';
   if (n) {
     const names = ctrl.balls.map((c) => BALLS[c].name).join('·');
-    hint = valid ? `${names} 선택! 가져가기를 눌러 턴을 마치세요.` : `${names} 선택 중 — ${pe ? ({ bad_ball_count: '서로 다른 볼을 3개까지 골라주세요.' }[pe] ?? '') : ''}`;
+    hint = valid ? `${names} 선택! 가져가기를 눌러 턴을 마치세요.` : `${names} 선택 중 — ${pe ? ({ bad_ball_count: '서로 다른 령주를 3개까지 골라주세요.' }[pe] ?? '') : ''}`;
   }
-  const label = n === 2 && ctrl.balls[0] === ctrl.balls[1] ? `${BALLS[ctrl.balls[0]].name} 2개 가져가기` : (n ? `볼 ${n}개 가져가기` : '볼 가져가기');
+  const label = n === 2 && ctrl.balls[0] === ctrl.balls[1] ? `${BALLS[ctrl.balls[0]].name} 2개 가져가기` : (n ? `령주 ${n}개 가져가기` : '령주 가져가기');
   return `<div class="hint">${hint}</div>${err}
     <div class="btnrow"><button class="btn ghost" data-action="clear" ${n ? '' : 'disabled'}>선택 취소</button>
     <button class="btn primary" data-action="confirm-balls" ${valid ? '' : 'disabled'}>${label}</button></div>`;
@@ -264,7 +264,7 @@ export function aiToastHTML(ctrl) {
   else if (ev.type === 'takeTwo') body = `${ballImg(ev.color, 'ballspr')}<b>×2</b> 가져감`;
   else if (ev.type === 'buy') {
     const card = ctrl.cardsById.get(ev.cardId);
-    body = card ? `${staticSprite(card)}<b>${card.name}</b> 잡음!` : '포켓몬 잡음!';
+    body = card ? `${staticSprite(card)}<b>${card.name}</b> 모심!` : '신수 모심!';
   } else if (ev.type === 'reserve') {
     const card = ev.cardId ? ctrl.cardsById.get(ev.cardId) : null;
     body = card ? `${staticSprite(card)}<b>${card.name}</b> 찜!` : '덱에서 찜!';
@@ -295,9 +295,9 @@ function oppSheetHTML(p, ctrl) {
     <div class="sheet-title">${trainerFaceSrc(p.name) ? `<img class="tface big" src="${trainerFaceSrc(p.name)}" alt="">` : ''}${p.isAI ? 'AI ' : ''}${esc(p.name)} <small>· ${getPoints(p)}점 · 진화 ${p.evolved.length}회</small></div>
     <div class="olbl">■ 보너스 (할인)</div>
     <div class="pips big">${COLORS.map((c) => `<span class="pip d-${c}">${ballImg(c, 'mini2')}${b[c]}</span>`).join('')}</div>
-    <div class="olbl">■ 가진 볼 (${tokenCount(p)}/10)</div>
+    <div class="olbl">■ 가진 령주 (${tokenCount(p)}/10)</div>
     <div class="otks">${tokens}</div>
-    <div class="olbl">■ 포켓몬 (${p.tableau.length}마리)</div>
+    <div class="olbl">■ 신수 (${p.tableau.length}마리)</div>
     <div class="opoke">${groups || '<div class="empty-note">아직 없음</div>'}</div>
     <div class="olbl">■ 찜한 카드 (${p.hand.length}/3)</div>
     <div class="ohand">${hand}</div>
@@ -314,8 +314,8 @@ function shortfallHTML(player, card) {
     return `<span class="need ${have >= need ? 'ok' : 'lack'}">${ballImg(c, 'mini2')}${have}/${need}</span>`;
   }).join('');
   const masterNote = isSpecial(card) && !(player.tokens[MASTER] > 0)
-    ? `<span class="need lack">${ballImg(MASTER, 'mini2')}마스터볼 필요</span>` : '';
-  return parts + masterNote || '볼이 부족해요';
+    ? `<span class="need lack">${ballImg(MASTER, 'mini2')}여의주 필요</span>` : '';
+  return parts + masterNote || '령주가 부족해요';
 }
 
 export function sheetHTML(ctrl) {
@@ -344,7 +344,7 @@ export function sheetHTML(ctrl) {
   if (sh.kind === 'deck') {
     return `<div class="sheet-back" data-action="close"></div><div class="sheet">
       <div class="sheet-title">${tierLabel[sh.tier]} 덱 맨 위 카드</div>
-      <p class="sheet-p">뒷면 그대로 찜해요. 마스터볼이 남아 있으면 1개를 받아요.</p>
+      <p class="sheet-p">뒷면 그대로 찜해요. 여의주가 남아 있으면 1개를 받아요.</p>
       <div class="btnrow"><button class="btn ghost" data-action="close">닫기</button>
       <button class="btn primary" data-action="reserve-deck" data-tier="${sh.tier}" ${ctrl.canReserve() ? '' : 'disabled'}>찜하기</button></div></div>`;
   }
@@ -362,17 +362,17 @@ export function sheetHTML(ctrl) {
   const canReserve = !inHand && !isSpecial(card) && ctrl.canReserve();
   const reserveNote = inHand ? '' : isSpecial(card) ? '희귀·전설은 찜 불가' : !ctrl.canReserve() ? '찜 한도(3장) 초과' : '';
   const masterLeft = ctrl.state.supply[MASTER] > 0;
-  const reserveLabel = masterLeft ? '찜하기 (+마스터볼)' : '찜하기 (마스터볼 품절)';
+  const reserveLabel = masterLeft ? '찜하기 (+여의주)' : '찜하기 (여의주 품절)';
   return `<div class="sheet-back" data-action="close"></div><div class="sheet">
     <div class="sheet-card">${cardHTML(card, ctrl, { interactive: false })}</div>
     <div class="sheet-info">
       <div class="sheet-title">${card.name}</div>
-      <div class="paylbl">내가 낼 볼 (보너스 할인 적용)</div>
+      <div class="paylbl">내가 낼 령주 (보너스 할인 적용)</div>
       <div class="pay ${payCls}">${payText}</div>
       ${reserveNote ? `<div class="note">${reserveNote}</div>` : ''}
     </div>
     <div class="btnrow col">
-      <button class="btn primary" data-action="buy" data-card="${card.id}" ${pay ? '' : 'disabled'}>포켓몬 잡기</button>
+      <button class="btn primary" data-action="buy" data-card="${card.id}" ${pay ? '' : 'disabled'}>신수 모시기</button>
       ${inHand ? '' : `<button class="btn alt" data-action="reserve" data-card="${card.id}" ${canReserve ? '' : 'disabled'}>${reserveLabel}</button>`}
       <button class="btn ghost" data-action="close">닫기</button>
     </div></div>`;
@@ -387,7 +387,7 @@ export function startHTML({ save = null, dex = null, cards = [], options = null,
   return `<div class="overlay"><div class="panel">
     <div class="title big">오행 스플렌더<small>OHAENG SPLENDOR · DOT EDITION</small></div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
-    <p class="sheet-p">트레이너를 골라 AI 3명과 4인전을 시작해요.<br>21점을 먼저 모으는 트레이너가 승리!</p>
+    <p class="sheet-p">도사를 골라 AI 3명과 4인전을 시작해요.<br>21점을 먼저 모으는 도사가 승리!</p>
     ${resume}
     <div class="tiles">${TRAINERS.map((t, i) => `<button class="tile t${i}" data-action="start" data-name="${t}">${trainerFaceSrc(t) ? `<img class="tileface" src="${trainerFaceSrc(t)}" alt="">` : `<span class="tilebox"></span>`}${t}</button>`).join('')}</div>
     <div class="difflabel">AI 난이도</div>
@@ -397,7 +397,7 @@ export function startHTML({ save = null, dex = null, cards = [], options = null,
     </div>
     <p class="sheet-p">AI의 플레이 스타일(전문화·견제·균형)은 매 게임 랜덤으로 정해져요. 🤫</p>
     ${save ? '<p class="sheet-p warn">새로 시작하면 저장된 게임은 사라져요.</p>' : ''}
-    <div class="btnrow"><button class="btn alt" data-action="dex">도감 ${sum ? `${sum.caught}/${sum.total}` : ''}</button>
+    <div class="btnrow"><button class="btn alt" data-action="dex">신수록 ${sum ? `${sum.caught}/${sum.total}` : ''}</button>
     <button class="btn alt" data-action="rules">룰 설명</button>
     <button class="btn alt" data-action="options">⚙ 설정</button></div>
     <div class="btnrow"><button class="btn alt" data-action="achv">🏆 업적</button>
@@ -415,21 +415,21 @@ export function rulesHTML() {
       <h4>■ 목표</h4>
       <p><b>21점</b>을 먼저 모으면 마지막 라운드! 전원이 같은 턴 수를 마치면 종료, 최고점이 승리해요.</p>
       <h4>■ 내 차례에 하는 일 (하나만 선택)</h4>
-      <p>① <b>서로 다른 볼 3개</b> 가져오기 (마스터볼 제외)<br>
-      ② <b>같은 볼 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
-      ③ <b>카드 찜하기</b> (최대 3장, 마스터볼 1개를 받아요 · 마스터볼은 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
-      ④ <b>포켓몬 잡기</b> (볼을 내고 카드를 가져와요)<br>
-      <span style="color:#4ade80">■</span> <b>초록 테두리</b>=지금 바로 잡을 수 있음 · <span style="color:#60a5fa">■</span> <b>파랑 테두리</b>=고른 볼을 가져가면 다음 턴에 잡을 수 있음</p>
+      <p>① <b>서로 다른 령주 3개</b> 가져오기 (여의주 제외)<br>
+      ② <b>같은 령주 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
+      ③ <b>카드 찜하기</b> (최대 3장, 여의주 1개를 받아요 · 여의주는 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
+      ④ <b>신수 모시기</b> (령주를 내고 카드를 가져와요)<br>
+      <span style="color:#4ade80">■</span> <b>초록 테두리</b>=지금 바로 모실 수 있음 · <span style="color:#60a5fa">■</span> <b>파랑 테두리</b>=고른 령주를 가져가면 다음 턴에 모실 수 있음</p>
       <h4>■ 보너스 = 할인</h4>
-      <p>잡은 포켓몬의 보너스 1개(희귀/전설은 2개)마다 해당 볼 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
+      <p>모신 신수의 보너스 1개(희귀/전설은 2개)마다 해당 령주 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
       <h4>■ 진화</h4>
-      <p>내 턴이 끝나면, 필요한 보너스를 가진 포켓몬은 다음 단계로 <b>진화</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)</p>
-      <h4>■ 볼 10개 제한</h4>
-      <p>마스터볼 포함 10개를 넘기면, 초과분을 골라 반환해야 해요.</p>
-      <h4>■ 마스터볼</h4>
-      <p>어떤 볼이든 1개로 대체할 수 있는 만능 볼! <b>희귀/전설 포켓몬을 잡으려면 마스터볼 1개가 꼭 필요</b>해요.</p>
+      <p>내 턴이 끝나면, 필요한 보너스를 가진 신수는 다음 단계로 <b>진화</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)</p>
+      <h4>■ 령주 10개 제한</h4>
+      <p>여의주 포함 10개를 넘기면, 초과분을 골라 반환해야 해요.</p>
+      <h4>■ 여의주</h4>
+      <p>어떤 령주든 1개로 대체할 수 있는 만능 령주! <b>희귀/전설 신수를 모으려면 여의주 1개가 꼭 필요</b>해요.</p>
       <h4>■ 동점 처리</h4>
-      <p>① 진화 횟수가 많은 쪽 → ② 그래도 동점이면 앞면 포켓몬이 적은 쪽이 이겨요.</p>
+      <p>① 진화 횟수가 많은 쪽 → ② 그래도 동점이면 앞면 신수가 적은 쪽이 이겨요.</p>
     </div>
     <div class="btnrow"><button class="btn primary" data-action="rules-close">닫기</button></div>
   </div></div>`;
@@ -438,9 +438,9 @@ export function rulesHTML() {
 export function tutorialHTML(tut) {
   if (!tut) return '';
   const steps = [
-    `<b>STEP 1</b> 볼을 모아보세요!<br>서로 다른 볼 3개를 누른 뒤 <b>[가져가기]</b>를 누르세요.`,
-    `<b>STEP 2</b> 포켓몬을 잡아보세요!<br>카드를 누르면 필요한 볼을 확인할 수 있어요. 볼이 모자라면 몇 턴 더 모아보세요.`,
-    `<b>STEP 3</b> 보너스 획득!<br>잡은 포켓몬의 보너스 색 볼은 게임 끝까지 1개씩 영구 할인돼요.`,
+    `<b>STEP 1</b> 령주를 모아보세요!<br>서로 다른 령주 3개를 누른 뒤 <b>[가져가기]</b>를 누르세요.`,
+    `<b>STEP 2</b> 신수를 모셔보세요!<br>카드를 누르면 필요한 령주를 확인할 수 있어요. 령주가 모자라면 몇 턴 더 모아보세요.`,
+    `<b>STEP 3</b> 보너스 획득!<br>모신 신수의 보너스 색 령주는 게임 끝까지 1개씩 영구 할인돼요.`,
     `<b>STEP 4</b> 21점을 먼저 모으면 승리!<br>카드를 미리 <b>[찜하기]</b>로 확보하거나, 보너스를 모아 <b>진화</b>시켜보세요. 행운을 빌어요!`,
   ];
   const last = tut.step >= steps.length - 1;
@@ -478,21 +478,21 @@ export function optionsHTML(options) {
 
 function beginnerTip(ctrl) {
   const s = ctrl.state;
-  if (s.phase === PHASES.DISCARD) return '볼이 10개를 넘었어요. 아래 내 볼을 눌러 초과분을 반환하세요.';
-  if (s.phase === PHASES.EVOLVE) return '진화 찬스! 조건을 만족한 포켓몬을 진화시키면 점수와 보너스가 올라가요.';
+  if (s.phase === PHASES.DISCARD) return '령주가 10개를 넘었어요. 아래 내 령주를 눌러 초과분을 반환하세요.';
+  if (s.phase === PHASES.EVOLVE) return '진화 찬스! 조건을 만족한 신수를 진화시키면 점수와 보너스가 올라가요.';
   if (!ctrl.isHumanTurn) return null;
   const n = ctrl.balls.length;
   if (n > 0) {
     return ctrl.pendingValid()
-      ? '좋아요! [가져가기]를 누르면 볼을 가져오고 턴이 끝나요.'
-      : '서로 다른 볼 3개, 또는 같은 볼 2개(공급처에 4개 이상 남았을 때)를 고를 수 있어요.';
+      ? '좋아요! [가져가기]를 누르면 령주를 가져오고 턴이 끝나요.'
+      : '서로 다른 령주 3개, 또는 같은 령주 2개(공급처에 4개 이상 남았을 때)를 고를 수 있어요.';
   }
   for (const key of ['1', '2', '3', 'rare', 'legend']) {
     for (const card of s.table[key] || []) {
-      if (card && ctrl.canBuy(card.id)) return '지금 바로 잡을 수 있는 포켓몬이 있어요! 반짝이는 카드를 눌러보세요.';
+      if (card && ctrl.canBuy(card.id)) return '지금 바로 모실 수 있는 신수가 있어요! 반짝이는 카드를 눌러보세요.';
     }
   }
-  return '21점이 목표! 볼을 모아서 포켓몬을 잡으세요. 보너스가 쌓이면 할인이 커져요.';
+  return '21점이 목표! 령주를 모아서 신수를 모시세요. 보너스가 쌓이면 할인이 커져요.';
 }
 
 export function helpHTML(ctrl, options, tutorial) {
@@ -505,7 +505,7 @@ export function helpHTML(ctrl, options, tutorial) {
 export function dexHTML(dex, cards) {
   const sum = dexSummary(dex, cards);
   const order = { 1: 1, 2: 2, 3: 3, rare: 4, legend: 5 };
-  const list = [...cards].sort((a, b) => order[a.tier] - order[b.tier] || a.dex - b.dex);
+  const list = [...cards].sort((a, b) => order[a.tier] - order[b.tier] || a.id.localeCompare(b.id));
   const cell = (c) => {
     const e = dex.caught[c.id];
     return e
@@ -514,7 +514,7 @@ export function dexHTML(dex, cards) {
   };
   const g = dex.games;
   return `<div class="overlay"><div class="panel dexpanel">
-    <div class="title big">도감<small>잡은 포켓몬 ${sum.caught}/${sum.total} · ${g.played}판 ${g.won}승</small></div>
+    <div class="title big">신수록<small>모신 신수 ${sum.caught}/${sum.total} · ${g.played}판 ${g.won}승</small></div>
     <div class="dexgrid">${list.map(cell).join('')}</div>
     <div class="btnrow"><button class="btn primary" data-action="dex-close">닫기</button></div>
   </div></div>`;
@@ -534,8 +534,8 @@ export function endHTML(ctrl) {
     <div class="title big">${top ? '우승!' : '게임 종료'}<small>${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : '최종 순위'}</small></div>
     <table class="rank">${rows}</table>
     ${scoreLine}
-    <p class="sheet-p">동점은 진화 횟수가 많은 쪽 → 앞면 포켓몬 수가 적은 쪽이 이겨요.</p>
-    <div class="btnrow"><button class="btn alt" data-action="dex">도감</button>
+    <p class="sheet-p">동점은 진화 횟수가 많은 쪽 → 앞면 신수 수가 적은 쪽이 이겨요.</p>
+    <div class="btnrow"><button class="btn alt" data-action="dex">신수록</button>
     <button class="btn primary" data-action="restart">다시 하기</button></div>
   </div></div>`;
 }

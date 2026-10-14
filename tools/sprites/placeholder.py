@@ -11,8 +11,8 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
 FORCE = '--force' in sys.argv
-COLORS = {'monster': (239, 68, 68), 'super': (59, 130, 246), 'hyper': (113, 113, 122),
-          'heal': (236, 72, 153), 'quick': (234, 179, 8), 'master': (139, 92, 246)}
+COLORS = {'monster': (0xD9, 0x45, 0x3B), 'super': (0x1F, 0x2F, 0x5C), 'hyper': (0xD9, 0xA6, 0x33),
+          'heal': (0x3F, 0xA5, 0x6B), 'quick': (0xE6, 0xE4, 0xDA), 'master': (0x9F, 0xE8, 0xF0)}  # roster.json mapping
 OUT = (10, 10, 18)
 
 def save(img, path, **kw):

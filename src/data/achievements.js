@@ -9,8 +9,8 @@ export const ACHIEVEMENTS = [
   { id: 'no-evo-win', icon: '🌱', name: '순수 육성', desc: '진화 없이 승리하기', check: (c) => c.won && c.evolutions === 0 },
   { id: 'evo-master', icon: '🌀', name: '진화 마스터', desc: '한 게임에서 5회 진화하기', check: (c) => c.evolutions >= 5 },
   { id: 'rainbow', icon: '🌈', name: '무지개', desc: '5가지 색상 보너스를 모두 보유하기', check: (c) => c.bonusColors.size >= 5 },
-  { id: 'legend-catch', icon: '✨', name: '전설 포획', desc: '전설·환상 포켓몬 잡기', check: (c) => c.caughtLegend },
-  { id: 'hard-win', icon: '👑', name: '진정한 챔피언', desc: '어려움 난이도에서 승리하기', check: (c) => c.won && c.difficulty === 'hard' },
+  { id: 'legend-catch', icon: '✨', name: '전설 강림', desc: '전설·환상 신수 모시기', check: (c) => c.caughtLegend },
+  { id: 'hard-win', icon: '👑', name: '진정한 대도사', desc: '어려움 난이도에서 승리하기', check: (c) => c.won && c.difficulty === 'hard' },
 ];
 
 export function checkAchievements(ctx, unlocked) {
