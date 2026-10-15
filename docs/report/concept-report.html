@@ -1,0 +1,231 @@
+<title>Next-splender 컨셉 보고</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column, director memo. Decision ledger first, then evidence sections. */
+:root{
+  --bg:#f6f7f8; --surface:#ffffff; --ink:#1b2129; --muted:#5b6673; --line:#dde2e7;
+  --accent:#0f6b5e; --accent-soft:#e2f0ed; --warn:#9a5b00; --warn-soft:#fbefdc; --bad:#a3302a; --bad-soft:#f8e3e1;
+  --g-wood:#2f8f6a; --g-fire:#c9483b; --g-earth:#c99a1e; --g-metal:#c8ccd2; --g-water:#26303b;
+  --f-display:"Gowun Batang", "Noto Serif KR", "Batang", serif;
+  --f-body:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161b; --surface:#1a2027; --ink:#e7ebef; --muted:#9aa5b1; --line:#2b333c;
+  --accent:#4fc1ad; --accent-soft:#16312d; --warn:#e3a647; --warn-soft:#352914; --bad:#ec7a73; --bad-soft:#3a1d1b;
+  --g-metal:#e6e9ec; --g-water:#0b0e12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161b; --surface:#1a2027; --ink:#e7ebef; --muted:#9aa5b1; --line:#2b333c;
+  --accent:#4fc1ad; --accent-soft:#16312d; --warn:#e3a647; --warn-soft:#352914; --bad:#ec7a73; --bad-soft:#3a1d1b;
+  --g-metal:#e6e9ec; --g-water:#0b0e12; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.3;margin:0}
+h1{font-size:2rem;font-weight:700}
+h2{font-size:1.35rem;font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--line)}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+section{display:flex;flex-direction:column;gap:16px;min-width:0}
+.eyebrow{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.meta{color:var(--muted);font-size:.9rem}
+.gems{display:flex;gap:6px;align-items:center}
+.gem{width:14px;height:14px;border-radius:50%;border:1px solid var(--line)}
+.gem.wood{background:var(--g-wood)}.gem.fire{background:var(--g-fire)}.gem.earth{background:var(--g-earth)}.gem.metal{background:var(--g-metal)}.gem.water{background:var(--g-water)}
+header{display:flex;flex-direction:column;gap:12px}
+.lead{font-size:1.05rem;max-width:62ch}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--accent-soft);padding:1px 5px;border-radius:4px;word-break:break-all}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-weight:600;color:var(--muted);font-size:.78rem;letter-spacing:.04em;background:var(--bg)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:99px;white-space:nowrap}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.hold{background:var(--warn-soft);color:var(--warn)}
+.pill.bug{background:var(--bad-soft);color:var(--bad)}
+.worlds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.worlds{grid-template-columns:1fr}}
+.world{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.world.top{border-color:var(--accent)}
+.score{display:flex;align-items:baseline;gap:8px}
+.score b{font-family:var(--f-display);font-size:1.8rem;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.line{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:.85rem}
+.line span{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.line em{font-style:normal;color:var(--muted)}
+.small{font-size:.85rem;color:var(--muted)}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
+.flow span{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+.flow .opt{border-style:dashed}
+.flow em{font-style:normal;color:var(--muted)}
+.next{background:var(--accent-soft);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="gems" aria-hidden="true"><i class="gem wood"></i><i class="gem fire"></i><i class="gem earth"></i><i class="gem metal"></i><i class="gem water"></i></div>
+  <h1>Next-splender 컨셉 종합 보고</h1>
+  <p class="meta">2026-10-14 · 총괄 디렉터 · 기획팀·아트팀 검토 반영</p>
+  <p class="lead">멀티플레이 전용 스플렌더류 모바일 게임. 룰 뼈대는 포켓몬 스플렌더를 그대로 쓰고, 포켓몬을 대체할 저작권 안전 세계관을 고른다. 결정 8건 확정, 세계관 1건은 캐릭터 시안을 보고 정한다.</p>
+</header>
+
+<section>
+  <h2>결정 현황</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>항목</th><th>결정</th><th>상태</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td>화면</td><td>세로 전용 (390×844 기준)</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D2</td><td>그래픽</td><td>2D 치비/카툰 + 플랫 UI 1안, 도트와 A/B 검증</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D3</td><td>AI 아트</td><td>허용. AI 초안 + 사람 후보정</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D4</td><td>플랫폼</td><td>스마트폰 전용</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D5</td><td>룰 차용</td><td>저작권 문제 없음으로 판단</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D6</td><td>룰 뼈대</td><td>포켓몬 스플렌더 룰 그대로</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D7</td><td>세계관</td><td>3안 캐릭터 디자인 시안 확인 후 결정</td><td><span class="pill hold">보류</span></td></tr>
+      <tr><td>D8</td><td>멀티 구조</td><td>서버 권위 (P2P 락스텝 폐기)</td><td><span class="pill ok">확정</span></td></tr>
+      <tr><td>D9</td><td>귀족 타일</td><td>없음. 승급과 희귀/전설이 대체</td><td><span class="pill ok">확정</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>세계관 3안</h2>
+  <p>기획팀 가중 점수(100점 환산, 주관 평가). 진화 적합성 20%, 친숙도·저작권·매핑·리스크 각 15%, 아트·수집욕 각 10%.</p>
+  <div class="worlds">
+    <div class="world top">
+      <span class="eyebrow">A · 기획팀 추천</span>
+      <h3>오행 신수</h3>
+      <div class="score"><b>86</b><span class="small">/ 100</span></div>
+      <div class="bar"><i style="width:86%"></i></div>
+      <div class="line"><span>잉어</span><em>›</em><span>이무기</span><em>›</em><span>용</span></div>
+      <div class="line"><span>새끼 여우</span><em>›</em><span>오미호</span><em>›</em><span>구미호</span></div>
+      <p class="small">오행 5색이 스플렌더 5색과 1:1. 조커는 여의주. 변신 연출이 가장 강하다.</p>
+    </div>
+    <div class="world">
+      <span class="eyebrow">B · 사용자 선호</span>
+      <h3>삼국지</h3>
+      <div class="score"><b>67</b><span class="small">/ 100</span></div>
+      <div class="bar"><i style="width:67%"></i></div>
+      <div class="line"><span>의병</span><em>›</em><span>교위</span><em>›</em><span>장군</span></div>
+      <div class="line"><span>서생</span><em>›</em><span>참모</span><em>›</em><span>군사</span></div>
+      <p class="small">진화는 관직 승진. 최종 단계만 실존 명장. 5색은 위·촉·오·군웅·재야, 조커는 전국옥새. 한국 남성 직장인에게 가장 강하다.</p>
+    </div>
+    <div class="world">
+      <span class="eyebrow">C · 글로벌형</span>
+      <h3>세계 신화 크리처</h3>
+      <div class="score"><b>76</b><span class="small">/ 100</span></div>
+      <div class="bar"><i style="width:76%"></i></div>
+      <div class="line"><span>재 속의 알</span><em>›</em><span>불새</span><em>›</em><span>불사조</span></div>
+      <div class="line"><span>새끼 늑대</span><em>›</em><span>회색 늑대</span><em>›</em><span>펜리르</span></div>
+      <p class="small">해외 친숙도 높음. 신화권마다 모티프가 달라 통일된 진화 라인을 짜기 어렵다.</p>
+    </div>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>항목</th><th class="num">가중치</th><th class="num">A 오행</th><th class="num">B 삼국지</th><th class="num">C 세계신화</th></tr></thead>
+    <tbody>
+      <tr><td>친숙도</td><td class="num">15</td><td class="num">4</td><td class="num">4</td><td class="num">4</td></tr>
+      <tr><td>저작권 안전성</td><td class="num">15</td><td class="num">4</td><td class="num">3</td><td class="num">3</td></tr>
+      <tr><td>진화 적합성</td><td class="num">20</td><td class="num">5</td><td class="num">3</td><td class="num">4</td></tr>
+      <tr><td>5색·조커·희귀 매핑</td><td class="num">15</td><td class="num">4</td><td class="num">4</td><td class="num">4</td></tr>
+      <tr><td>치비·AI 아트 적합성</td><td class="num">10</td><td class="num">5</td><td class="num">4</td><td class="num">5</td></tr>
+      <tr><td>수집욕</td><td class="num">10</td><td class="num">4</td><td class="num">4</td><td class="num">4</td></tr>
+      <tr><td>리스크 (낮을수록 고점)</td><td class="num">15</td><td class="num">4</td><td class="num">2</td><td class="num">3</td></tr>
+      <tr><td><b>합계</b></td><td class="num">100</td><td class="num"><b>86</b></td><td class="num"><b>67</b></td><td class="num"><b>76</b></td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">삼국지에 가장 유리하게 조정해도 77점. 삼국지 리스크: 코에이·진삼국무쌍 디자인 유사성, 여성·해외 호감도, 중국 시장 민감도. 대안으로 1차 출시 후 확장 시즌 콘텐츠로 두는 안이 있다. 원전이 퍼블릭 도메인이어도 현대 작품의 이름·외형·설정(나루토 쿠라마, 포켓몬 나인테일, 드래곤볼 신룡 등)은 따르지 않는다.</p>
+</section>
+
+<section>
+  <h2>룰 뼈대 (참조작 그대로)</h2>
+  <div class="flow" aria-label="턴 순서">
+    <span>행동 1개</span><em>›</em><span class="opt">토큰 10개 초과분 반환</span><em>›</em><span class="opt">승급 (무료, 1회)</span><em>›</em><span>턴 종료</span>
+  </div>
+  <div class="tbl"><table>
+    <tbody>
+      <tr><th>토큰</th><td>색 5종: 2인 4 · 3인 5 · 4인 7개. 와일드 5개 고정. 보유 상한 10, 예약 상한 3</td></tr>
+      <tr><th>카드</th><td>90장 = T1 35 · T2 30 · T3 15 · 희귀 5 · 전설 5. 공개 칸 T1~T3 각 4, 희귀·전설 각 1</td></tr>
+      <tr><th>행동</th><td>다른 색 3개 · 같은 색 2개(재고 4 이상) · 예약(+와일드 1) · 구매 · 패스(합법 행동 없을 때만)</td></tr>
+      <tr><th>승급</th><td>필드 카드의 요건 색 보너스 N 이상 + 다음 단계 카드가 테이블이나 내 예약패에 있을 때. 이전 카드는 아래에 깔려 보너스만 유지</td></tr>
+      <tr><th>희귀·전설</th><td>정상 비용 + 와일드 1개 추가. 예약 불가. 보너스 2개</td></tr>
+      <tr><th>승리</th><td>21점 도달 시 라운드 끝까지 진행. 동점은 승급 횟수 많음 › 필드 카드 적음</td></tr>
+      <tr><th>귀족</th><td>없음 (D9)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>화면·그래픽·멀티</h2>
+  <div class="grid2">
+    <div class="box">
+      <span class="eyebrow">화면 · 세로 전용</span>
+      <p>390×844에 4인 최대 정보량이 약 728pt로 들어간다. 카드 80×104, 토큰 48pt.</p>
+      <p class="small">상대 정보는 요약 칩(점수·보너스·토큰 수·예약 수)으로 항상 보이고, 탭하면 하단 시트에 상세가 열린다. 375×667은 축소 레이아웃이 따로 필요하다.</p>
+    </div>
+    <div class="box">
+      <span class="eyebrow">그래픽 · 치비 카툰</span>
+      <p>아트팀 점수: 치비 30.5, 플랫 28.5, 도트 26, 3D풍 24.5.</p>
+      <p class="small">참조작의 도트 호응에는 포켓몬 향수가 섞여 있다. 검증: 크리처 3종을 치비·도트로 그려 비게이머 직장인 20~30명에게 A/B 테스트. 합격선은 선호 60% 이상, 진화 단계 구분 정답률 90% 이상.</p>
+    </div>
+    <div class="box">
+      <span class="eyebrow">멀티 · 서버 권위</span>
+      <p>퀵매치는 턴당 45초. 퇴근길 비동기 매치는 턴당 4h/12h/24h, 푸시 알림.</p>
+      <p class="small">타임아웃 2회 연속이면 봇이 대행하고, 3회면 이탈로 처리한다. 서버가 행동을 판정하므로 덱 정보가 클라이언트에 가지 않는다.</p>
+    </div>
+    <div class="box">
+      <span class="eyebrow">데이터 구조</span>
+      <p>카드 데이터(이름·일러스트·색 명칭)를 룰 로직과 분리한다.</p>
+      <p class="small">세계관 교체와 삼국지 시즌 같은 확장 비용을 낮추기 위한 구조다. 세계관 결정이 늦어져도 엔진 개발을 먼저 시작할 수 있다.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>참조작 버그 (이식 금지)</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>ID</th><th>내용</th><th>근거</th><th>상태</th></tr></thead>
+    <tbody>
+      <tr><td>B1</td><td>턴 타임아웃 액션이 거부되어 타임아웃이 작동하지 않음</td><td><code>engine.js:252-258</code> phaseOf에 timeout 없음</td><td><span class="pill bug">디렉터 확인</span></td></tr>
+      <tr><td>B2</td><td>타임아웃 시 토큰 반환을 건너뛰어 10개 초과로 턴 종료 가능</td><td>doTimeout</td><td><span class="pill hold">코드 판독</span></td></tr>
+      <tr><td>B3</td><td>호스트가 행동 주체가 현재 차례인지 검증하지 않음</td><td><code>session.js:240-251</code></td><td><span class="pill hold">재현 안 함</span></td></tr>
+      <tr><td>B4</td><td>전체 덱 순서가 클라이언트에 전송되어 덱 엿보기 가능</td><td>SYNC 메시지</td><td><span class="pill hold">구조 한계</span></td></tr>
+      <tr><td>B5</td><td>상태 해시에 startPlayer, passStreak 누락</td><td>해시 함수</td><td><span class="pill hold">코드 판독</span></td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">B3·B4는 서버 권위 구조(D8)로 해결된다. B1은 현재 포켓몬 스플렌더에도 영향이 있다.</p>
+</section>
+
+<section>
+  <div class="next">
+    <span class="eyebrow">다음 단계</span>
+    <h3>세계관별 캐릭터 디자인 시안</h3>
+    <ul>
+      <li>아트팀: 3개 세계관 각각 진화 라인 1개(3단계)를 치비 스타일로 시안 제작. AI 생성 프롬프트와 스타일 규칙 포함</li>
+      <li>기획팀: 확정된 룰 뼈대를 바탕으로 중립 용어 룰 명세(GDD v0.1) 작성</li>
+      <li>프로그래밍팀: 세계관과 무관한 서버 권위 엔진 설계안 (카드 데이터 분리 구조)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>원문 문서</h2>
+  <p class="small">저장소 <code>kmskr2000-tech/Next-splender</code>, 브랜치 <code>claude/concept-docs</code></p>
+  <ul class="small">
+    <li><code>docs/design/decisions.md</code> 결정 로그</li>
+    <li><code>docs/design/world-comparison.md</code> 세계관 3안 비교</li>
+    <li><code>docs/design/rules-baseline.md</code> 룰 뼈대 추출</li>
+    <li><code>docs/design/concept-world-system.md</code> 1차 세계관·시스템 검토</li>
+    <li><code>docs/art/concept-style-orientation.md</code> 그래픽·화면 방향</li>
+  </ul>
+</section>
+
+</div>
