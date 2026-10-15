@@ -291,14 +291,26 @@ export function createController({ cards, seed, humanName = '나', aiNames = ['�
   return ctrl;
 }
 
-export function evoText(card, cardsById) {
-  if (!card.evolvesTo) {
-    if (card.tier === 'rare' || card.tier === 'legend') return '보너스 2개 · 마패 필수';
-    return card.tier === 3 ? '최종 성장' : '성장 없음';
+// 성장 경로 역참조: 다음 단계 id → 전 단계 카드 (cardsById 기준으로 한 번만 계산)
+let fromSrc = null, fromMap = null;
+export function evolvesFrom(id, cardsById) {
+  if (fromSrc !== cardsById) {
+    fromSrc = cardsById; fromMap = new Map();
+    for (const c of cardsById.values()) if (c.evolvesTo) fromMap.set(c.evolvesTo, c);
   }
-  const next = cardsById.get(card.evolvesTo);
-  const req = COLORS.filter((c) => card.evolveReq?.[c]).map((c) => `${BALLS[c].short} 보너스 ${card.evolveReq[c]}`).join(' ');
-  return `→ ${next?.name ?? '?'}<br>(${req})`;
+  return fromMap.get(id) || null;
+}
+
+const reqText = (card) => COLORS.filter((c) => card.evolveReq?.[c]).map((c) => `${BALLS[c].name} 보너스 ${card.evolveReq[c]}개`).join(' + ');
+
+export function evoText(card, cardsById) {
+  if (card.tier === 'rare' || card.tier === 'legend') return '보너스 2개 · 마패 필수';
+  const prev = evolvesFrom(card.id, cardsById);
+  const lines = [];
+  if (prev) lines.push(`← 전 단계: <b>${prev.name}</b><br><small>(${prev.name} 보유 + ${reqText(prev)} → 이 카드로 성장)</small>`);
+  if (card.evolvesTo) lines.push(`→ 다음 단계: <b>${cardsById.get(card.evolvesTo)?.name ?? '?'}</b><br><small>(${reqText(card)})</small>`);
+  else lines.push(card.tier === 3 || prev ? '최종 성장' : '성장 없음');
+  return lines.join('<br>');
 }
 
 export function describeEvent(ev, ctrl) {

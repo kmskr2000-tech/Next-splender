@@ -3,7 +3,7 @@
 
 import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792037245';
 import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792037245';
-import { BALLS, TRAINERS, evoText } from './controller.js?v=1792037245';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792037245';
 import { dexSummary } from '../storage/store.js?v=1792037245';
 import { ACHIEVEMENTS } from '../data/achievements.js?v=1792037245';
 import { ROSTER, LINES } from '../data/roster.js?v=1792037245';
@@ -52,6 +52,20 @@ function spriteStyle(id) {
   const d = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 32 / 10;
   return `style="--k:${k.toFixed(3)};--cx:${(b[0] + b[2]) / 2};--cy:${(b[1] + b[3]) / 2};--d:-${d}s"`;
 }
+// 성장 경로 썸네일(22px 원)에 전 단계 인물 전신을 맞춰 넣는다
+function miniStyle(id) {
+  const b = SPRITE_BOX[id];
+  if (!b) return '';
+  const k = 22 / Math.max(b[2] - b[0], b[3] - b[1]);
+  return `style="--k:${k.toFixed(3)};--cx:${(b[0] + b[2]) / 2};--cy:${(b[1] + b[3]) / 2}"`;
+}
+// 2·3단계 카드 그림 왼쪽 아래: "이 인물에게서 성장" 썸네일. 내가 전 단계를 가졌으면 초록 테두리
+function evoFromHTML(card, ctrl) {
+  const prev = ctrl?.cardsById ? evolvesFrom(card.id, ctrl.cardsById) : null;
+  if (!prev) return '';
+  const mine = ctrl.me?.tableau?.some((c) => c.id === prev.id);
+  return `<span class="evofrom ${mine ? 'mine' : ''}" title="${prev.name}에서 성장" aria-label="${prev.name}에서 성장"><span class="face"><img ${miniStyle(prev.id)} src="${pokeSrc(prev.id)}" alt=""></span><i>↗</i></span>`;
+}
 // Own cards with an equipped skin use the skin PNG (no gif); everything else keeps the animated gif.
 const animSprite = (card, mine = false) => {
   const skin = mine ? pokeSrc(card.id, true) : null;
@@ -93,7 +107,7 @@ export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableN
     ${buyable ? '<span class="buymark">영입 가능</span>' : buyableNext ? '<span class="buymark next">다음 턴</span>' : ''}
     ${card.points ? `<span class="pts">${card.points}</span>` : ''}
     <span class="bonusicons">${bonuses.map((b) => ballImg(b, 'bonusdotimg')).join('')}</span>
-    <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" ${spriteStyle(card.id)} src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}</span>
+    <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" ${spriteStyle(card.id)} src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}${evoFromHTML(card, ctrl)}</span>
     <span class="nm">${tag}${card.name}</span>
     <span class="cost">${cost}</span>
     ${card.evolvesTo ? '<span class="grow" title="성장 가능" aria-label="성장 가능">↗</span>' : ''}
@@ -401,7 +415,7 @@ export function sheetHTML(ctrl) {
         <div class="sheet-title">${card.name}</div>
         <div class="paylbl">보너스</div>
         <div class="pay">${bonusList(card).map((b) => ballImg(b)).join(' ')}</div>
-        <div class="paylbl">성장 조건</div>
+        <div class="paylbl">성장 경로</div>
         <div class="evoinfo">${evoText(card, ctrl.cardsById)}</div>
         ${relHTML(card)}
       </div>
@@ -436,7 +450,7 @@ export function sheetHTML(ctrl) {
       <div class="paylbl">내가 낼 보물 (보너스 할인 적용)</div>
       <div class="pay ${payCls}">${payText}</div>
       ${reserveNote ? `<div class="note">${reserveNote}</div>` : ''}
-      <div class="paylbl">성장 조건</div>
+      <div class="paylbl">성장 경로</div>
       <div class="evoinfo">${evoText(card, ctrl.cardsById)}</div>
       ${relHTML(card)}
     </div>
@@ -462,7 +476,7 @@ export function rulesHTML() {
       <h4>■ 보너스 = 할인</h4>
       <p>영입한 인물의 보너스 1개(희귀/전설은 2개)마다 같은 종류 보물 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
       <h4>■ 성장</h4>
-      <p>내 턴이 끝나면, 성장 조건의 보너스를 갖춘 인물은 다음 단계로 <b>성장</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)</p>
+      <p>내 턴이 끝나면, 성장 조건의 보너스를 갖춘 인물은 다음 단계로 <b>성장</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)<br>카드 오른쪽 <b>↗</b> = 다음 단계로 성장할 수 있는 인물 · 그림 왼쪽 아래 <b>작은 얼굴</b> = 그 인물에게서 성장해 오는 카드 (내가 가진 인물이면 초록 테두리)</p>
       <h4>■ 보물 10개 제한</h4>
       <p>마패 포함 10개를 넘기면, 초과분을 골라 반환해야 해요.</p>
       <h4>■ 마패</h4>
