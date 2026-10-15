@@ -1,9 +1,9 @@
 // node tests/lobby.test.mjs -- 친목전 로비: 방 메타(kind/size/pwHash) 저장·목록 노출, 게스트 입장, 매칭 방과 구분
 // Firebase 대신 메모리 RTDB 목(아래 MockDb)으로 FirebaseRoom + NetSession 흐름을 돌린다.
 import assert from 'node:assert/strict';
-import { __setMockDb, listRooms, claimName, nameKey } from '../src/net/fireroom.js?v=1792047695';
-import { NetSession } from '../src/net/session.js?v=1792047695';
-import { encodeLook, decodeLook, sanitizeLook } from '../src/ui/look.js?v=1792047695';
+import { __setMockDb, listRooms, claimName, nameKey } from '../src/net/fireroom.js?v=1792061648';
+import { NetSession } from '../src/net/session.js?v=1792061648';
+import { encodeLook, decodeLook, sanitizeLook } from '../src/ui/look.js?v=1792061648';
 
 // ---- tiny in-memory RTDB (only what fireroom.js uses) ----
 class MockDb {

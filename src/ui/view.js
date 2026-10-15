@@ -1,18 +1,18 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792047695';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792047695';
-import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792047695';
-import { dexSummary } from '../storage/store.js?v=1792047695';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792047695';
-import { ROSTER, LINES } from '../data/roster.js?v=1792047695';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792047695';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792047695';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792047695';
-import { displayOf } from '../meta/rating.js?v=1792047695';
-import { SPRITE_BOX } from './spritebox.js?v=1792047695';
-import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792047695';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792061648';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792061648';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792061648';
+import { dexSummary } from '../storage/store.js?v=1792061648';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792061648';
+import { ROSTER, LINES } from '../data/roster.js?v=1792061648';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792061648';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792061648';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792061648';
+import { displayOf } from '../meta/rating.js?v=1792061648';
+import { SPRITE_BOX } from './spritebox.js?v=1792061648';
+import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792061648';
 
 
 const ASSET = 'assets';
