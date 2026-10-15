@@ -41,25 +41,25 @@ function showInAppGuide() {
 }
 showInAppGuide();
 
-import { CARDS } from '../data/cards.js?v=1792047695';
-import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792047695';
-import { createController, TRAINERS } from './controller.js?v=1792047695';
-import * as V from './view.js?v=1792047695';
-import { createChatWidget } from './chat.js?v=1792047695';
-import { randomLook, sanitizeLook, encodeLook, decodeLook } from './look.js?v=1792047695';
-import { NetSession } from '../net/session.js?v=1792047695';
-import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792047695';
-import { getPoints, bonusList } from '../core/engine.js?v=1792047695';
-import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792047695';
-import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792047695';
+import { CARDS } from '../data/cards.js?v=1792061648';
+import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792061648';
+import { createController, TRAINERS } from './controller.js?v=1792061648';
+import * as V from './view.js?v=1792061648';
+import { createChatWidget } from './chat.js?v=1792061648';
+import { randomLook, sanitizeLook, encodeLook, decodeLook } from './look.js?v=1792061648';
+import { NetSession } from '../net/session.js?v=1792061648';
+import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792061648';
+import { getPoints, bonusList } from '../core/engine.js?v=1792061648';
+import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792061648';
+import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792061648';
 import {
   browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult,
   loadProfile, recordNormalGame, recordRankedMatch, recordRankedLeave, rankedDisplay,
   loadInventory, claimFreeItem, equipOwnedItem,
-} from '../storage/store.js?v=1792047695';
-import { resolveMatch, isEarlyLeave } from '../meta/rating.js?v=1792047695';
-import { RANKED, RANKED_UNLOCK, rankedUnlockStatus } from '../meta/config.js?v=1792047695';
-import { itemById, itemName } from '../meta/catalog.js?v=1792047695';
+} from '../storage/store.js?v=1792061648';
+import { resolveMatch, isEarlyLeave } from '../meta/rating.js?v=1792061648';
+import { RANKED, RANKED_UNLOCK, rankedUnlockStatus } from '../meta/config.js?v=1792061648';
+import { itemById, itemName } from '../meta/catalog.js?v=1792061648';
 
 // App flow: home (lobby) -> matching queue / friend room -> in-game -> result -> home.
 // There is no solo mode: bots exist only as seat fillers when a queue times out.
@@ -120,8 +120,7 @@ const $ = (id) => document.getElementById(id);
 const chat = createChatWidget($('chat'), { send: (t) => !!net?.sendChat(t) });
 function renderChat() {
   const live = !!net && ['hostlobby', 'guestlobby', 'playing'].includes(net.phase);
-  document.getElementById('chat').dataset.mode = ctrl ? 'game' : 'lobby';
-  chat.update({ visible: live, log: net?.chatLog || [], myIndex: net?.myIndex ?? -1 });
+  chat.update({ visible: live, log: net?.chatLog || [], mode: ctrl ? 'game' : 'lobby' });
 }
 const myName = () => options.playerName || '도사';
 firstRun = !options.playerName;
@@ -585,7 +584,7 @@ function openNet() {
     onRender: () => render(),
     onGameStart: (c) => enterGame(c),
     onEvolve: (fromId, toId, player) => showEvolveFx(fromId, toId, player),
-    onChat: () => { renderChat(); if (!chat.isOpen()) sfx.chat(); },
+    onChat: () => { renderChat(); sfx.chat(); },
     onGameEnd: () => { net = null; ctrl = null; queue = null; render(); },
     onNotice: (msg) => { netNotice = msg; if (queue) queue.notice = msg; render(); },
   });
