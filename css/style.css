@@ -184,7 +184,7 @@ img { image-rendering: pixelated; }
 .d-heal { --c: var(--heal); } .d-quick { --c: var(--quick-edge); } .d-master { --c: var(--master); }
 
 /* ---------- market board ---------- */
-.board { margin: 8px 0 0 6px; padding: 3px; background: var(--paper-2); border-radius: var(--r-panel); display: flex; flex-direction: column; gap: 4px; }
+.board { margin: 8px 0 0 6px; padding: 3px; background: #26303F; border-radius: var(--r-panel); display: flex; flex-direction: column; gap: 4px; }
 .tier-row { display: flex; gap: 3px; align-items: stretch; }
 .tier-row .half { flex: 1; min-width: 0; display: flex; gap: 3px; }
 .deck {
@@ -210,7 +210,7 @@ img { image-rendering: pixelated; }
 .card.t-1 { --band: var(--t1); } .card.t-2 { --band: var(--t2); } .card.t-3 { --band: var(--t3); }
 .card.t-rare { --band: var(--t-rare); } .card.t-legend::before { background: var(--t-legend); }
 button.card:not(:disabled):active { transform: translateY(1px); }
-.card.empty { background: transparent; border: 1px dashed var(--line); box-shadow: none; }
+.card.empty { background: transparent; border: 1px dashed rgba(243,236,224,.22); box-shadow: none; }
 .card.empty::before { display: none; }
 .card.buyable { border: 3px solid var(--jade); padding: 5px 0 3px; animation: buyPulse 1.6s ease-in-out infinite; }
 .card.buyable-next { border: 2px dashed var(--next); padding: 6px 0 4px; }
@@ -228,15 +228,12 @@ button.card:not(:disabled):active { transform: translateY(1px); }
 .bonusdotimg { width: 16px; height: 16px; padding: 3px; background: #fff; border: 1px solid var(--line); border-radius: 50%; box-sizing: content-box; }
 .card .art {
   position: relative; overflow: hidden; width: 100%; height: 56px; margin-top: 6px; flex: none;
-  background: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--c, var(--t1)) 14%, transparent) 0, color-mix(in srgb, var(--c, var(--t1)) 5%, transparent) 55%, transparent 72%);
 }
 .card .sprite { position: absolute; max-width: none; width: calc(96px * var(--k, .6) * var(--s, 1)); height: auto; left: calc(50% - var(--cx, 48) * var(--k, .6) * var(--s, 1) * 1px); top: calc(50% - var(--cy, 48) * var(--k, .6) * var(--s, 1) * 1px); image-rendering: pixelated; }
 /* 카드 속 대기 모션: GIF 숨쉬기(1px) 위에 아주 작은 위아래 흔들림. 카드마다 위상(--d)이 다르다 */
 @keyframes cardIdle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
 .card .art .sprite { animation: none; } /* 차분하게: 카드 흔들림 없이 GIF 1px 숨쉬기만 */
 @media (prefers-reduced-motion: reduce) { .card .art .sprite { animation: none; } }
-.card.rare .art { background: radial-gradient(circle at 50% 55%, rgba(78,143,126,.32) 0, rgba(78,143,126,.1) 55%, transparent 72%); }
-.card.legend .art { background: radial-gradient(circle at 50% 55%, rgba(201,162,74,.42) 0, rgba(200,64,47,.1) 55%, transparent 72%); }
 .card .nm { font-family: var(--f-pixel); font-size: 11px; margin: 3px 0 4px; line-height: 1.25; word-break: keep-all; letter-spacing: -.02em; }
 .card .tag { display: block; width: max-content; margin: 0 auto 1px; font-family: var(--f-body); font-size: 9px; font-weight: 700; letter-spacing: 0; line-height: 1; padding: 2px 6px; border-radius: var(--r-chip); color: #fff; }
 .card .tag.rare { background: var(--jade-text); } .card .tag.legend { background: linear-gradient(90deg, #A98430, #C8402F); }
@@ -245,7 +242,6 @@ button.card:not(:disabled):active { transform: translateY(1px); }
 .miniball { width: 16px; height: 16px; }
 .card .costchip { background: none; padding: 0; gap: 0; font-size: 12px; letter-spacing: -.04em; }
 .card .costchip .miniball { width: 13px; height: 13px; }
-.card .grow { position: absolute; right: 4px; top: 46px; z-index: 1; width: 14px; height: 14px; border-radius: 50%; background: var(--jade); color: #fff; font-size: 10px; line-height: 14px; text-align: center; font-weight: 700; }
 .card.has-grow .cost { padding-right: 0; }
 .b-monster { --c: var(--monster); } .b-super { --c: var(--super); } .b-hyper { --c: var(--hyper); }
 .b-heal { --c: var(--heal); } .b-quick { --c: var(--quick-edge); } .b-master { --c: var(--master); }
@@ -593,15 +589,11 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 .tier-row.special .card .pts { position: static; grid-area: meta; justify-self: start; align-self: start; margin-top: 2px; }
 .tier-row.special .card .bonusicons { position: static; grid-area: meta; flex-direction: row; justify-self: end; align-self: start; margin-top: 1px; }
 .tier-row.special .card .cost { grid-area: cost; margin-top: 4px; justify-content: flex-start; }
-.tier-row.special .card.has-grow .grow { display: none; }
 
-/* 성장 경로 썸네일: 2·3단계 카드 그림 왼쪽 아래에 전 단계 인물 얼굴 + ↗ */
-.card .evofrom { position: absolute; left: 3px; bottom: 2px; z-index: 2; width: 22px; height: 22px; pointer-events: none; }
-.card .evofrom .face { position: absolute; inset: 0; overflow: hidden; border-radius: 50%; background: #fff; border: 1.5px solid var(--band, var(--line)); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
-.card .evofrom img { position: absolute; max-width: none; width: calc(96px * var(--k, .25)); height: auto; left: calc(50% - var(--cx, 48) * var(--k, .25) * 1px); top: calc(50% - var(--cy, 48) * var(--k, .25) * 1px); image-rendering: pixelated; }
-.card .evofrom i { display: none; position: absolute; right: -5px; top: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink-2); color: #fff; font-style: normal; font-size: 8px; line-height: 12px; text-align: center; font-weight: 700; }
-.card .evofrom.mine .face { border: 2px solid var(--jade); box-shadow: 0 0 0 2px rgba(78,143,126,.35), 0 0 6px rgba(78,143,126,.6); }
-.card .evofrom.mine i { background: var(--jade); }
+/* 카드 맨 아래 성장 줄 (원작의 진화 줄) */
+.card .evoline { width: calc(100% - 8px); margin-top: 4px; padding-top: 3px; border-top: 1px dashed var(--line); font-size: 10px; line-height: 1.2; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.03em; }
+.card .evoline.none { color: #B3A898; }
+.card .evoline.mine { color: var(--jade-text); font-weight: 700; }
 
 /* ===== 등급 특수 이펙트 (D19): 후광 대신 등급마다 다른 기운 ===== */
 @property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
