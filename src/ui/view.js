@@ -699,14 +699,16 @@ export function joinCodeHTML(notice = '') {
   </div></div>`;
 }
 
-export function profileHTML(options) {
+export function profileHTML(options, { first = false, error = '' } = {}) {
   return `<div class="overlay"><div class="panel">
-    <div class="title big">프로필</div>
+    <div class="title big">${first ? '어서 오세요!' : '프로필'}</div>
+    ${first ? '<p class="sheet-p">함께 놀 친구들에게 보일 <b>닉네임</b>을 정해 주세요. 나중에 홈의 프로필에서 바꿀 수 있어요.</p>' : ''}
     <p class="sheet-p">닉네임</p>
-    <input id="profname" class="netinput" maxlength="12" placeholder="도사" value="${esc(options.playerName)}">
+    <input id="profname" class="netinput" maxlength="12" placeholder="${first ? '닉네임 (최대 12자)' : '도사'}" value="${esc(options.playerName)}" ${first ? 'autofocus enterkeyhint="done"' : ''}>
+    ${error ? `<p class="note">${esc(error)}</p>` : ''}
     <p class="sheet-p">대표 캐릭터</p>
     <div class="avpick">${AVATARS.map((n) => `<button class="avopt ${options.avatar === n ? 'sel' : ''}" data-action="avatar" data-name="${n}">${avatarHTML(n, 0, { cls: 'md' })}<span>${n}</span></button>`).join('')}</div>
-    <div class="btnrow"><button class="btn primary" data-action="profile-save">저장</button></div>
+    <div class="btnrow"><button class="btn primary" data-action="profile-save">${first ? '시작하기' : '저장'}</button></div>
   </div></div>`;
 }
 
