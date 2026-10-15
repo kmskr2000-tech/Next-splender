@@ -13,14 +13,20 @@
 - 데이터: `tools/data/gen_roster_js.py`가 roster-korea.json → `src/data/roster.js`, cards.js 이름 동기화
 - 테스트: `node tests/rating.test.mjs`, `node tests/meta.test.mjs`, `node tests/ranked-shots.mjs`(Playwright)
 
-## 다음 할 일: PixelLab
-- 계획서: `docs/art/pixellab-plan.md`. MCP 설정: `.mcp.json` (키는 env `PIXELLAB_API_KEY`에서만 읽음, 커밋 금지)
-- 1단계: `get_balance`로 연결·잔액 확인
-- 2단계: 현재 도트 3장(이순신·세종·도깨비)을 style_images로 대표 인물 시안 → 기존 생성기 결과와 인게임 비교 후 사용자 결정
-- 결과는 96×96 투명 PNG로 정규화 → spritebox.py → breathe_idle.py
+## PixelLab 카드 인물 (D17, 완료)
+- 90장 PixelLab 도트로 교체 완료: 재디자인(왕관·관복 인물 차별화) → 인물별 표정 → 역동적 자세 순으로 반복, 사물 8장은 1차본 유지
+- 시트: `docs/art/pixellab/roster90-v3.png` (v1·v2는 이전 단계)
+- 재현: `tools/pixellab/prompts.json`(common/items/expressions/poses), `objects.json`(카드↔PixelLab 오브젝트 ID)
+- 대기 모션: PixelLab v3 4프레임(`animate_all.py`) → `fetch_build.py <repo> <cache>`로 PNG·GIF 동시 정규화
+  - 불량 9장은 `motion_reject.txt` → `idle_gif.py` 1px 숨쉬기
+  - 카드 CSS `.card .art .sprite` 미세 흔들림(카드별 위상, reduced-motion 시 끔)
+- 스프라이트 바꾼 뒤엔 `python -I tools/sprites/spritebox.py .` 필수
+- 네트워크: backblaze.pixellab.ai 차단 → API ZIP 경유. 크레딧 2000/월(11-14 갱신), 약 530 사용
+- 작업 현황 대시보드: https://claude.ai/artifact/Chfo6uoUY7dAEKr4tFxFgw (비공개)
 
 ## 사용자 결정 대기
-1. t3-015 처용 확정 vs 산군(호랑이)
+0. 3단계·희귀·전설 후광 링 복원 여부(새 도트엔 없음, 세종·산신령·궁예만 후광)
+1. t3-015 처용 확정 vs 산군(호랑이) — 현재 처용탈 쓴 처용으로 제작됨
 2. 무조신 바리 두 번째 소품: 꽃가지(현재) vs 부채
 3. 이모트 `emo_tiger`('호랑이 울음') 유지/교체
 

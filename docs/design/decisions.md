@@ -19,3 +19,4 @@
 | D15 | 2026-10-14 | 세계 설화 확장(v3) 폐기. 컨셉은 한국 문화만 유지 | roster-world-v3는 참고용 보관 |
 | D16 | 2026-10-14 | 한국 로스터 v2-final 병합: v2 12장 교체 + 김수로 라인→홍길동 2단 + t3-015 처용 + 사신 4장(주작 rare-002, 청룡 rare-004, 백호 legend-001, 현무 legend-004; 저승사자·호랑이·불가사리·해태 제거). 수치·슬롯·룰 불변 | roster-korea.json/md, roster-final-art-requests.md |
 | D17 | 2026-10-15 | 카드 인물 90장 PixelLab 생성 도트로 교체(구독 Tier 1). 화풍 기준 = 기존 생성기 이순신·세종·도깨비 3장. 카드 속 대기 모션 = PixelLab v3 4프레임 루프 + CSS 미세 흔들림, 얼굴 변형 등 불량은 1px 숨쉬기로 대체 | `docs/art/pixellab-plan.md`, `tools/pixellab/` |
+| D18 | 2026-10-15 | 카드 인물 차별화: 왕관·관복 인물 16명 얼굴·대표 소품 재디자인, 90장 인물별 표정, 인물 80장 역동적 자세. 사물 8장은 1차본 유지 | 사용자 피드백 3회 반영, `tools/pixellab/prompts.json` |
