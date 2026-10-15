@@ -626,6 +626,7 @@ document.addEventListener('click', (e) => {
     case 'options-close': optionsOpen = false; break;
     case 'toggle-help':
       options.beginnerHelp = !options.beginnerHelp;
+      if (options.beginnerHelp) V.resetTips(); // 다시 켜면 팁을 처음부터 한 번씩
       saveOptions(storage, options);
       break;
     case 'toggle-fill':

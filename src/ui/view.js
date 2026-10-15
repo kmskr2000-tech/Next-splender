@@ -505,11 +505,32 @@ function beginnerTip(ctrl) {
   return '21점이 목표! 보물을 모아 인물을 영입하세요. 보너스가 쌓이면 할인이 커져요.';
 }
 
+// 초보 팁은 같은 문구를 기기당 한 번만 보여 준다 (오류 안내는 매번). 설정에서 도움말을 다시 켜면 처음부터.
+const TIP_KEY = 'ohsp-tips-seen';
+let tipsSeen = null, lastTip = '';
+function loadTipsSeen() {
+  if (tipsSeen) return tipsSeen;
+  try { tipsSeen = new Set(JSON.parse(globalThis.localStorage?.getItem(TIP_KEY) || '[]')); } catch { tipsSeen = new Set(); }
+  return tipsSeen;
+}
+export function resetTips() {
+  tipsSeen = new Set(); lastTip = '';
+  try { globalThis.localStorage?.removeItem(TIP_KEY); } catch { /* storage blocked: in-memory only */ }
+}
+const toastHTML = (msg) => `<div class="toast" onclick="this.remove()" role="status"><span class="helptag">TIP</span><span>${msg}</span></div>`;
+
 export function helpHTML(ctrl, options) {
   if (!ctrl || ctrl.finished) return '';
-  const msg = ctrl.isHumanTurn && ctrl.message ? ctrl.message : (options.beginnerHelp ? beginnerTip(ctrl) : '');
-  if (!msg) return '';
-  return `<div class="toast" onclick="this.remove()" role="status"><span class="helptag">TIP</span><span>${msg}</span></div>`;
+  if (ctrl.isHumanTurn && ctrl.message) return toastHTML(ctrl.message);
+  const tip = options.beginnerHelp ? beginnerTip(ctrl) : '';
+  if (!tip) { lastTip = ''; return ''; }
+  if (tip === lastTip) return toastHTML(tip); // 같은 화면에서 다시 그려질 때는 그대로 둔다(사라지는 중인 토스트 유지)
+  lastTip = '';
+  const seen = loadTipsSeen();
+  if (seen.has(tip)) return '';
+  seen.add(tip); lastTip = tip;
+  try { globalThis.localStorage?.setItem(TIP_KEY, JSON.stringify([...seen])); } catch { /* storage blocked */ }
+  return toastHTML(tip);
 }
 
 export function dexHTML(dex, cards) {
