@@ -50,6 +50,11 @@ def fetch(oid, cache):
                 if not wait:
                     raise
                 time.sleep(wait)
+        if not data.startswith(b'PK'):  # 애니메이션이 아직 없으면 ZIP 대신 PNG 한 장이 온다: 캐시하지 않음
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, 'w') as z:
+                z.writestr('rotations/unknown.png', data)
+            return zipfile.ZipFile(buf)
         with open(path, 'wb') as f:
             f.write(data)
     return zipfile.ZipFile(path)
