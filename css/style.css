@@ -212,8 +212,16 @@ img { image-rendering: pixelated; }
 button.card:not(:disabled):active { transform: translateY(1px); }
 .card.empty { background: transparent; border: 1px dashed var(--line); box-shadow: none; }
 .card.empty::before { display: none; }
-.card.buyable { border: 2px solid var(--jade); padding: 6px 0 4px; box-shadow: 0 0 0 3px rgba(78,143,126,.18), var(--sh-1); }
-.card.buyable-next { border-color: var(--ink-2); border-style: dashed; }
+.card.buyable { border: 3px solid var(--jade); padding: 5px 0 3px; animation: buyPulse 1.6s ease-in-out infinite; }
+.card.buyable-next { border: 2px dashed var(--next); padding: 6px 0 4px; }
+@keyframes buyPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(78,143,126,.35), 0 0 8px rgba(78,143,126,.45), var(--sh-1); }
+  50% { box-shadow: 0 0 0 4px rgba(78,143,126,.55), 0 0 16px rgba(78,143,126,.75), var(--sh-1); }
+}
+/* 영입 가능 리본: 카드 위쪽 가운데. 초록=지금 영입, 파랑=고른 보물을 가져가면 다음 턴 영입 */
+.card .buymark { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 3; padding: 1px 6px 2px; border-radius: 0 0 7px 7px;
+  background: var(--jade-text); color: #fff; font-size: 10px; font-weight: 700; line-height: 1.2; white-space: nowrap; pointer-events: none; }
+.card .buymark.next { background: var(--next); }
 .card.sel, .card:focus-visible { border: 2px solid var(--vermilion); box-shadow: var(--sh-2); outline: none; }
 .card .pts { position: absolute; top: 5px; left: 5px; z-index: 1; font-family: var(--f-pixel); font-size: 18px; line-height: 1; color: var(--gold-text); font-variant-numeric: tabular-nums; text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; }
 .card .bonusicons { position: absolute; top: 5px; right: 4px; z-index: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -254,7 +262,7 @@ button.card:not(:disabled):active { transform: translateY(1px); }
 .ball.sel { box-shadow: inset 0 0 0 2px var(--vermilion); background: rgba(200,64,47,.08); }
 .ball.empty .ballspr { opacity: .35; }
 .selcount { position: absolute; right: 1px; top: 1px; min-width: 16px; height: 16px; line-height: 16px; text-align: center; background: var(--vermilion); color: #fff; font-family: var(--f-pixel); font-size: 11px; border-radius: var(--r-chip); }
-.ball .bnm { display: none; }
+.ball .bnm { display: block; font-size: 10px; line-height: 1.15; color: var(--ink-2); font-weight: 600; white-space: nowrap; letter-spacing: -.03em; }
 .ball .cnt { display: block; font-family: var(--f-pixel); font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* ---------- my area ---------- */
@@ -273,8 +281,8 @@ button.card:not(:disabled):active { transform: translateY(1px); }
 .reserved { display: flex; gap: 6px; flex-wrap: wrap; }
 .rsv { font-size: 12px; color: var(--ink); background: var(--paper); border: 1px dashed var(--ink-2); border-radius: 10px; padding: 4px 8px 4px 4px; display: flex; align-items: center; gap: 6px; }
 .rsv small { color: var(--ink-2); font-size: 11px; }
-.rsv.buyable { border: 2px solid var(--jade); border-style: solid; padding: 3px 7px 3px 3px; }
-.rsv.buyable-next { border-style: solid; border-color: var(--ink-2); }
+.rsv.buyable { border: 3px solid var(--jade); border-style: solid; padding: 2px 6px 2px 2px; animation: buyPulse 1.6s ease-in-out infinite; }
+.rsv.buyable-next { border: 2px dashed var(--next); }
 .empty-note { font-size: 12px; color: var(--ink-2); }
 button.mp { cursor: pointer; }
 
@@ -640,6 +648,11 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .card.t-3 .art::before, .card.t-3 .art::after, .card.rare .art::before, .card.legend .art::before, .card.legend .art::after,
   .card.rare::after, .card.legend::after, .card.legend { animation: none; }
+}
+/* 전설은 테두리 회전과 영입 맥박을 함께 */
+.card.legend.buyable { animation: auraSpin 6s linear infinite, buyPulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .card.buyable, .rsv.buyable, .card.legend.buyable { animation: none; box-shadow: 0 0 0 3px rgba(78,143,126,.45), var(--sh-1); }
 }
 
 /* ===== 성장 성공 연출 ===== */

@@ -90,6 +90,7 @@ export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableN
   const tag = special ? `<span class="tag ${card.tier}">${tierLabel[card.tier]}</span>` : '';
   const attrs = interactive ? `data-action="card" data-card="${card.id}" data-zone="${zone}"` : 'disabled';
   return `<button class="${classes}" ${attrs}>
+    ${buyable ? '<span class="buymark">영입 가능</span>' : buyableNext ? '<span class="buymark next">다음 턴</span>' : ''}
     ${card.points ? `<span class="pts">${card.points}</span>` : ''}
     <span class="bonusicons">${bonuses.map((b) => ballImg(b, 'bonusdotimg')).join('')}</span>
     <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" ${spriteStyle(card.id)} src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}</span>
@@ -457,7 +458,7 @@ export function rulesHTML() {
       ② <b>같은 보물 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
       ③ <b>카드 찜하기</b> (최대 3장, 마패 1개를 받아요 · 마패는 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
       ④ <b>인물 영입</b> (보물을 내고 카드를 데려와요)<br>
-      <span style="color:var(--ok)">■</span> <b>초록 테두리</b>=지금 바로 영입할 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 테두리</b>=고른 보물을 가져가면 다음 턴에 영입할 수 있음</p>
+      <span style="color:var(--ok)">■</span> <b>초록 테두리·‘영입 가능’</b>=지금 바로 영입할 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 점선·‘다음 턴’</b>=고른 보물을 가져가면 다음 턴에 영입할 수 있음</p>
       <h4>■ 보너스 = 할인</h4>
       <p>영입한 인물의 보너스 1개(희귀/전설은 2개)마다 같은 종류 보물 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
       <h4>■ 성장</h4>
