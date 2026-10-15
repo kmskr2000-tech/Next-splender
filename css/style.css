@@ -753,3 +753,17 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 .chat-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
 .chat-in { flex: 1; min-width: 0; font-size: 16px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font-family: inherit; }
 .chat-send { flex: none; padding: 0 14px; border-radius: 10px; background: var(--vermilion); color: #fff; font-size: 14px; font-weight: 700; }
+
+/* ===== 내 캐릭터 꾸미기 (파츠 레이어 아바타) ===== */
+.av.look { position: relative; overflow: hidden; border-radius: 50%; background: var(--bg, #F3E7CF); padding: 0; flex: none; }
+.av.look img { position: absolute; left: -12.5%; top: -4%; width: 125%; height: 125%; max-width: none; image-rendering: pixelated; pointer-events: none; }
+.lk { margin: 4px 0 6px; }
+.lk-top { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 10px; }
+.lk-top .av.lg { width: 104px; height: 104px; }
+.lk-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+.lk-tab { flex: none; padding: 7px 12px; border-radius: var(--r-chip); background: var(--paper-2); color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.lk-tab.sel { background: var(--lacquer); color: var(--on-lacquer); }
+.lk-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 210px; overflow-y: auto; padding: 2px; }
+.lk-opt { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border-radius: 12px; background: var(--card); box-shadow: var(--sh-1); font-size: 11px; color: var(--ink-2); }
+.lk-opt.sel { box-shadow: 0 0 0 2px var(--vermilion); color: var(--ink); font-weight: 700; }
+.lk-opt .av.md { width: 48px; height: 48px; }

@@ -41,6 +41,7 @@ export class NetSession {
     this.aiTakeover = {}; // host: playerIndex -> true (disconnected seat now driven by AI)
     this._promoting = false; // guest: promotion in progress
     this.chatLog = []; // [{from, name, text, at}]
+    this.looks = []; // 좌석별 꾸민 모습 코드 (names와 같은 순서)
     this._chatRate = {}; // host: playerIndex -> recent send times
     this._lastChat = 0;
     this._waitingForHost = 0; // guest: timestamp until which we wait for a new host
@@ -113,7 +114,7 @@ export class NetSession {
         // Guest: connection open -> introduce ourselves; host replies with welcome+roster.
         // Include rejoin seat if we have one for this room code.
         if (this.role === 'guest' && this.room) {
-          const hello = { name: this.myName };
+          const hello = { name: this.myName, look: this.myLook || '' };
           const rj = this.usePeer && this.lastCode ? this.loadRejoin(this.lastCode) : null;
           if (rj) hello.rejoin = rj.playerIndex;
           this.room.send(makeMsg(MSG.HELLO, hello));
@@ -126,7 +127,7 @@ export class NetSession {
         // Guest socket dropped and came back after the host already saw us leave:
         // re-send HELLO with our saved seat so the host hands it back from AI.
         if (this.role === 'guest' && this.room && this.phase === 'playing') {
-          const hello = { name: this.myName };
+          const hello = { name: this.myName, look: this.myLook || '' };
           const rj = this.usePeer && this.lastCode ? this.loadRejoin(this.lastCode) : null;
           if (rj) hello.rejoin = rj.playerIndex;
           this.room.send(makeMsg(MSG.HELLO, hello));
@@ -146,6 +147,7 @@ export class NetSession {
     this.myName = this.cleanName(name);
     this.turnLimitMs = turnLimitMs;
     this.names = [this.myName];
+    this.looks = [this.myLook || ''];
     this.myIndex = 0;
     this.room = this.makeRoom();
     // Guest connections arrive via onMsg(hello) in both transports.
@@ -209,6 +211,7 @@ export class NetSession {
   broadcastRoster() {
     this.room.broadcast(makeMsg(MSG.ROSTER, {
       names: this.names,
+      looks: this.looks,
       aiTakeover: Object.keys(this.aiTakeover).map(Number),
     }));
   }
@@ -227,7 +230,7 @@ export class NetSession {
     const seed = (crypto.getRandomValues(new Uint32Array(1))[0] || 1);
     this.aiNames = this.pickAiNames();
     this.beginGame(seed, [...this.names], 0, this.aiNames);
-    this.room.broadcast(makeMsg(MSG.START, { seed, names: this.names, aiNames: this.aiNames, turnLimitMs: this.turnLimitMs }));
+    this.room.broadcast(makeMsg(MSG.START, { seed, names: this.names, looks: this.looks, aiNames: this.aiNames, turnLimitMs: this.turnLimitMs }));
     // Mark room as started so it disappears from lobby. Also write start info
     // as a fallback in case the broadcast message is missed.
     if (this.room && typeof this.room.markStarted === 'function') {
@@ -272,6 +275,7 @@ export class NetSession {
         let nm = this.cleanName(m.name);
         for (let n = 2; this.names.includes(nm); n++) nm = `${this.cleanName(m.name).slice(0, 11)}${n}`;
         this.names.push(nm);
+        this.looks[idx] = String(m.look || '').slice(0, 40); // 꾸민 모습 코드 (표시만, 게임 규칙과 무관)
         this.peerToPlayer[peerIdx] = idx;
         if (this.room && typeof this.room.setGuestPlayerIndex === 'function') {
           this.room.setGuestPlayerIndex(peerIdx, idx);
@@ -386,6 +390,7 @@ export class NetSession {
         break;
       case MSG.ROSTER:
         this.names = m.names;
+        if (Array.isArray(m.looks)) this.looks = m.looks.map((x) => String(x || '').slice(0, 40));
         // Sync AI-takeover seats (host converts disconnected seats to AI).
         if (this.ctrl && Array.isArray(m.aiTakeover)) {
           const take = new Set(m.aiTakeover);
@@ -401,6 +406,7 @@ export class NetSession {
         break;
       case MSG.START:
         if (m.turnLimitMs) this.turnLimitMs = m.turnLimitMs;
+        if (Array.isArray(m.looks)) this.looks = m.looks.map((x) => String(x || '').slice(0, 40));
         this.beginGame(m.seed, m.names, this.myIndex, m.aiNames || []);
         break;
       case MSG.ACTION: {

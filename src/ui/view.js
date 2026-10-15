@@ -12,6 +12,7 @@ import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog
 import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792040398';
 import { displayOf } from '../meta/rating.js?v=1792040398';
 import { SPRITE_BOX } from './spritebox.js?v=1792040398';
+import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792040398';
 
 
 const ASSET = 'assets';
@@ -144,11 +145,18 @@ export function boardHTML(ctrl) {
 const SEAT_COLORS = ['var(--obang-red)', 'var(--obang-blue)', 'var(--obang-yellow)', 'var(--obang-green)'];
 let myAvatar = '하늘';
 export const setMyAvatar = (name) => { myAvatar = name; };
+// 꾸민 캐릭터: 나(myLook)와 온라인 상대(seatLooks[좌석])는 파츠 아바타, AI는 기존 초상화
+let myLook = null;
+let seatLooks = null;
+export const setMyLook = (look) => { myLook = look ? sanitizeLook(look) : null; };
+export const setSeatLooks = (arr) => { seatLooks = Array.isArray(arr) ? arr : null; };
 
 /** Round avatar: trainer portrait when known, else a colored initial. */
 export function avatarHTML(name, seat = 0, { me = false, cls = '' } = {}) {
-  const face = trainerFaceSrc(me ? myAvatar : name) || trainerFaceSrc(name);
   const fr = me ? myFrame() : '';
+  const look = me ? myLook : seatLooks?.[seat];
+  if (look) return lookHTML(look, `${cls} ${fr}`);
+  const face = trainerFaceSrc(me ? myAvatar : name) || trainerFaceSrc(name);
   if (face) return `<img class="av ${cls} ${fr}" src="${face}" alt="">`;
   const ch = esc([...String(name || '?')][0] || '?');
   return `<span class="av ini ${cls} ${fr}" style="background:${SEAT_COLORS[seat % 4]}">${ch}</span>`;
@@ -747,17 +755,29 @@ export function lobbyPwHTML({ room, error = '' }) {
   </div></div>`;
 }
 
-export function profileHTML(options, { first = false, error = '', name = options.playerName, avatar = options.avatar, busy = false } = {}) {
+export function profileHTML(options, { first = false, error = '', name = options.playerName, look = options.look, tab = 'hair', busy = false } = {}) {
   return `<div class="overlay"><div class="panel">
     <div class="title big">${first ? '어서 오세요!' : '프로필'}</div>
     ${first ? '<p class="sheet-p">함께 놀 친구들에게 보일 <b>닉네임</b>을 정해 주세요. 나중에 홈의 프로필에서 바꿀 수 있어요.</p>' : ''}
     <p class="sheet-p">닉네임</p>
     <input id="profname" class="netinput" maxlength="12" placeholder="${first ? '닉네임 (최대 12자)' : '도사'}" value="${esc(name)}" ${first ? 'autofocus enterkeyhint="done"' : ''}>
     ${error ? `<p class="note">${esc(error)}</p>` : ''}
-    <p class="sheet-p">대표 캐릭터</p>
-    <div class="avpick">${AVATARS.map((n) => `<button class="avopt ${avatar === n ? 'sel' : ''}" data-action="avatar" data-name="${n}">${avatarHTML(n, 0, { cls: 'md' })}<span>${n}</span></button>`).join('')}</div>
-    <div class="btnrow"><button class="btn primary" data-action="profile-save" ${busy ? 'disabled' : ''}>${first ? '시작하기' : '저장'}</button></div>
+    ${lookEditorHTML(look, tab)}
+    <div class="btnrow">${first ? '' : '<button class="btn ghost" data-action="profile-cancel">취소</button>'}<button class="btn primary" data-action="profile-save" ${busy ? 'disabled' : ''}>${first ? '시작하기' : '저장'}</button></div>
   </div></div>`;
+}
+
+// 내 캐릭터 꾸미기: 큰 미리보기 + 부위 탭 + 선택지(각 선택지를 지금 모습에 입혀 본 썸네일)
+function lookEditorHTML(look, tab) {
+  const l = sanitizeLook(look);
+  const part = LOOK_PARTS[tab] ? tab : 'hair';
+  const tabs = Object.entries(LOOK_PARTS).map(([k, p]) => `<button class="lk-tab ${k === part ? 'sel' : ''}" data-action="look-tab" data-k="${k}">${p.label}</button>`).join('');
+  const opts = LOOK_PARTS[part].items.map(([id, label]) => `<button class="lk-opt ${l[part] === id ? 'sel' : ''}" data-action="look-pick" data-k="${part}" data-v="${id}">${lookHTML({ ...l, [part]: id }, 'md')}<span>${label}</span></button>`).join('');
+  return `<div class="lk">
+      <div class="lk-top">${lookHTML(l, 'lg')}<button class="btn ghost sm" data-action="look-random">🎲 무작위</button></div>
+      <div class="lk-tabs">${tabs}</div>
+      <div class="lk-opts">${opts}</div>
+    </div>`;
 }
 
 export function optionsHTML(options, inGame = false) {

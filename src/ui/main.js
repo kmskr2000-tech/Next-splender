@@ -46,6 +46,7 @@ import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=17920
 import { createController, TRAINERS } from './controller.js?v=1792040398';
 import * as V from './view.js?v=1792040398';
 import { createChatWidget } from './chat.js?v=1792040398';
+import { randomLook, sanitizeLook, encodeLook, decodeLook } from './look.js?v=1792040398';
 import { NetSession } from '../net/session.js?v=1792040398';
 import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792040398';
 import { getPoints, bonusList } from '../core/engine.js?v=1792040398';
@@ -110,6 +111,8 @@ const storage = browserStorage();
 const options = loadOptions(storage);
 setSFXEnabled(options.sfx);
 V.setMyAvatar(options.avatar);
+if (!options.look) { options.look = randomLook(); saveOptions(storage, options); } // 첫 실행: 무작위로 꾸며 준다
+V.setMyLook(options.look);
 V.setMyCosmetics(loadInventory(storage).equipped);
 
 const $ = (id) => document.getElementById(id);
@@ -185,6 +188,8 @@ function render() {
   checkNetFail();
   { const ab = $('actionbar'); if (ab && ctrl) document.documentElement.style.setProperty('--dockh', ab.offsetHeight + 'px'); }
   syncLobbyWatch();
+  // 온라인 상대의 꾸민 모습 (오프라인/AI 게임은 초상화)
+  V.setSeatLooks(net?.looks?.length ? net.looks.map((c) => (c ? decodeLook(c) : null)) : null);
   let overlay;
   if (ctrl) overlay = ctrl.finished ? V.endHTML(ctrl, lastResult) : '';
   else if (queue) overlay = V.queueHTML(queueView());
@@ -194,7 +199,7 @@ function render() {
     overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby });
     netNotice = '';
   }
-  const prof = { error: profileError, name: pendingName ?? options.playerName, avatar: pendingAvatar || options.avatar, busy: profileBusy };
+  const prof = { error: profileError, name: pendingName ?? options.playerName, look: pendingLook || options.look, tab: lookTab, busy: profileBusy };
   if (firstRun && !ctrl && !queue) overlay = V.profileHTML(options, { ...prof, first: true });
   else if (dexOpen) overlay = V.dexHTML(loadDex(storage), CARDS);
   else if (rulesOpen) overlay = V.rulesHTML();
@@ -585,6 +590,7 @@ function openNet() {
     onNotice: (msg) => { netNotice = msg; if (queue) queue.notice = msg; render(); },
   });
   net.myName = myName();
+  net.myLook = encodeLook(options.look);
 }
 
 // ---------- match bookkeeping (ranked rating / normal stats) ----------
@@ -648,6 +654,8 @@ function saveProfile(name, avatar) {
 
 let pendingAvatar = null;
 let pendingName = null; // 프로필 창에서 입력 중인 닉네임 (다시 그려도 유지)
+let pendingLook = null; // 프로필 창에서 꾸미는 중인 모습 (저장 전)
+let lookTab = 'hair';
 let profileBusy = false;
 
 // 기기 id: 닉네임 등록부의 주인 표시 (로그인 없이 기기 단위로 구분)
@@ -676,7 +684,8 @@ async function handleProfileSave() {
     if (r === 'taken') { profileError = '이미 다른 도사가 쓰는 닉네임이에요. 다른 이름을 골라 주세요.'; render(); return; }
   }
   saveProfile(typed, pendingAvatar || options.avatar);
-  profileOpen = false; firstRun = false; profileError = ''; pendingName = null;
+  if (pendingLook) { options.look = sanitizeLook(pendingLook); saveOptions(storage, options); V.setMyLook(options.look); if (net) net.myLook = encodeLook(options.look); }
+  profileOpen = false; firstRun = false; profileError = ''; pendingName = null; pendingLook = null;
   render();
 }
 // 예전부터 쓰던 닉네임도 등록부에 올려 둔다. 다른 기기가 먼저 등록했으면 바꾸도록 안내.
@@ -759,9 +768,12 @@ document.addEventListener('click', (e) => {
     case 'lobby-pw-close': lobbyPw = null; break;
     case 'lobby-pw-go': if (lobbyPw) joinLobbyRoom(lobbyPw.code, String($('lobbypwin')?.value ?? '')); return;
     case 'room-start': if (net && queue) startNetGame(queue, options.fillBots ? Math.max(0, queue.size - net.names.length) : 0); return;
-    case 'profile': profileOpen = true; pendingAvatar = options.avatar; pendingName = null; profileError = ''; break;
-    case 'avatar': pendingName = $('profname')?.value ?? pendingName; pendingAvatar = d.name; break;
+    case 'profile': profileOpen = true; pendingAvatar = options.avatar; pendingName = null; pendingLook = null; profileError = ''; break;
+    case 'look-tab': pendingName = $('profname')?.value ?? pendingName; lookTab = d.k; break;
+    case 'look-pick': pendingName = $('profname')?.value ?? pendingName; pendingLook = sanitizeLook({ ...(pendingLook || options.look), [d.k]: d.v }); break;
+    case 'look-random': pendingName = $('profname')?.value ?? pendingName; pendingLook = randomLook(); break;
     case 'profile-save': handleProfileSave(); return;
+    case 'profile-cancel': profileOpen = false; pendingLook = null; pendingName = null; profileError = ''; break;
     case 'rematch':
       curMatch = null;
       dropNet(); ctrl = null; optionsOpen = false; clearTimeout(aiTimer); aiTimer = null;
