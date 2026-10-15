@@ -1,17 +1,17 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792037245';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792037245';
-import { BALLS, TRAINERS, evoText } from './controller.js?v=1792037245';
-import { dexSummary } from '../storage/store.js?v=1792037245';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792037245';
-import { ROSTER, LINES } from '../data/roster.js?v=1792037245';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792037245';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792037245';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792037245';
-import { displayOf } from '../meta/rating.js?v=1792037245';
-import { SPRITE_BOX } from './spritebox.js?v=1792037245';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792039444';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792039444';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792039444';
+import { dexSummary } from '../storage/store.js?v=1792039444';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792039444';
+import { ROSTER, LINES } from '../data/roster.js?v=1792039444';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792039444';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792039444';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792039444';
+import { displayOf } from '../meta/rating.js?v=1792039444';
+import { SPRITE_BOX } from './spritebox.js?v=1792039444';
 
 
 const ASSET = 'assets';
@@ -52,6 +52,18 @@ function spriteStyle(id) {
   const d = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 32 / 10;
   return `style="--k:${k.toFixed(3)};--cx:${(b[0] + b[2]) / 2};--cy:${(b[1] + b[3]) / 2};--d:-${d}s"`;
 }
+// 카드 맨 아래 성장 줄(원작의 "진화" 줄처럼): 2·3단계는 ← 전 단계, 1단계는 → 다음 단계.
+// 전 단계 인물을 내가 가졌으면 초록 글씨로 "내 ○○"를 보여 성장 가능한 카드임을 알린다.
+function evoLineHTML(card, ctrl) {
+  if (isSpecial(card) || !ctrl?.cardsById) return '';
+  const prev = evolvesFrom(card.id, ctrl.cardsById);
+  if (prev) {
+    const mine = ctrl.me?.tableau?.some((c) => c.id === prev.id);
+    return `<span class="evoline ${mine ? 'mine' : ''}">← ${mine ? '내 ' : ''}${prev.name}</span>`;
+  }
+  if (card.evolvesTo) return `<span class="evoline">→ ${ctrl.cardsById.get(card.evolvesTo)?.name ?? ''}</span>`;
+  return '<span class="evoline none">성장 없음</span>';
+}
 // Own cards with an equipped skin use the skin PNG (no gif); everything else keeps the animated gif.
 const animSprite = (card, mine = false) => {
   const skin = mine ? pokeSrc(card.id, true) : null;
@@ -90,12 +102,13 @@ export function cardHTML(card, ctrl, { zone = 'table', buyable = false, buyableN
   const tag = special ? `<span class="tag ${card.tier}">${tierLabel[card.tier]}</span>` : '';
   const attrs = interactive ? `data-action="card" data-card="${card.id}" data-zone="${zone}"` : 'disabled';
   return `<button class="${classes}" ${attrs}>
+    ${buyable ? '<span class="buymark">영입 가능</span>' : buyableNext ? '<span class="buymark next">다음 턴</span>' : ''}
     ${card.points ? `<span class="pts">${card.points}</span>` : ''}
     <span class="bonusicons">${bonuses.map((b) => ballImg(b, 'bonusdotimg')).join('')}</span>
     <span class="art">${animated ? animSprite(card, mine) : `<img class="sprite" ${spriteStyle(card.id)} src="${pokeSrc(card.id, mine)}" alt="${card.name}">`}</span>
     <span class="nm">${tag}${card.name}</span>
     <span class="cost">${cost}</span>
-    ${card.evolvesTo ? '<span class="grow" title="성장 가능" aria-label="성장 가능">↗</span>' : ''}
+    ${evoLineHTML(card, ctrl)}
   </button>`;
 }
 
@@ -400,7 +413,7 @@ export function sheetHTML(ctrl) {
         <div class="sheet-title">${card.name}</div>
         <div class="paylbl">보너스</div>
         <div class="pay">${bonusList(card).map((b) => ballImg(b)).join(' ')}</div>
-        <div class="paylbl">성장 조건</div>
+        <div class="paylbl">성장 경로</div>
         <div class="evoinfo">${evoText(card, ctrl.cardsById)}</div>
         ${relHTML(card)}
       </div>
@@ -435,7 +448,7 @@ export function sheetHTML(ctrl) {
       <div class="paylbl">내가 낼 보물 (보너스 할인 적용)</div>
       <div class="pay ${payCls}">${payText}</div>
       ${reserveNote ? `<div class="note">${reserveNote}</div>` : ''}
-      <div class="paylbl">성장 조건</div>
+      <div class="paylbl">성장 경로</div>
       <div class="evoinfo">${evoText(card, ctrl.cardsById)}</div>
       ${relHTML(card)}
     </div>
@@ -457,11 +470,11 @@ export function rulesHTML() {
       ② <b>같은 보물 2개</b> 가져오기 (공급처에 4개 이상 남았을 때만)<br>
       ③ <b>카드 찜하기</b> (최대 3장, 마패 1개를 받아요 · 마패는 5개 한정이라 품절되면 찜만 돼요 · 희귀/전설은 찜 불가)<br>
       ④ <b>인물 영입</b> (보물을 내고 카드를 데려와요)<br>
-      <span style="color:var(--ok)">■</span> <b>초록 테두리</b>=지금 바로 영입할 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 테두리</b>=고른 보물을 가져가면 다음 턴에 영입할 수 있음</p>
+      <span style="color:var(--ok)">■</span> <b>초록 테두리·‘영입 가능’</b>=지금 바로 영입할 수 있음 · <span style="color:var(--next)">■</span> <b>파랑 점선·‘다음 턴’</b>=고른 보물을 가져가면 다음 턴에 영입할 수 있음</p>
       <h4>■ 보너스 = 할인</h4>
       <p>영입한 인물의 보너스 1개(희귀/전설은 2개)마다 같은 종류 보물 1개씩 영구 할인! 게임 끝까지 유지돼요.</p>
       <h4>■ 성장</h4>
-      <p>내 턴이 끝나면, 성장 조건의 보너스를 갖춘 인물은 다음 단계로 <b>성장</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)</p>
+      <p>내 턴이 끝나면, 성장 조건의 보너스를 갖춘 인물은 다음 단계로 <b>성장</b>할 수 있어요. 점수와 보너스가 올라가요. (1→2→3단계만 가능)<br>카드 맨 아래 줄: <b>← ○○</b> = ○○에게서 성장해 오는 카드 (내가 가졌으면 초록 <b>← 내 ○○</b>) · <b>→ ○○</b> = ○○(으)로 성장할 수 있는 인물</p>
       <h4>■ 보물 10개 제한</h4>
       <p>마패 포함 10개를 넘기면, 초과분을 골라 반환해야 해요.</p>
       <h4>■ 마패</h4>
