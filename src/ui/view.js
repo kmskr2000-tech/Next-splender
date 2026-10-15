@@ -1,17 +1,17 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792037245';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792037245';
-import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792037245';
-import { dexSummary } from '../storage/store.js?v=1792037245';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792037245';
-import { ROSTER, LINES } from '../data/roster.js?v=1792037245';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792037245';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792037245';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792037245';
-import { displayOf } from '../meta/rating.js?v=1792037245';
-import { SPRITE_BOX } from './spritebox.js?v=1792037245';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792039444';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792039444';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792039444';
+import { dexSummary } from '../storage/store.js?v=1792039444';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792039444';
+import { ROSTER, LINES } from '../data/roster.js?v=1792039444';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792039444';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792039444';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792039444';
+import { displayOf } from '../meta/rating.js?v=1792039444';
+import { SPRITE_BOX } from './spritebox.js?v=1792039444';
 
 
 const ASSET = 'assets';

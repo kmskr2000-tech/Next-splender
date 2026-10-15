@@ -1,8 +1,8 @@
 // Inventory / equip logic and render hooks for cosmetics. Pure functions: no DOM, no storage.
 // Payment is intentionally absent: claimItem only accepts price.amount === 0 items.
 
-import { CATALOG, itemById, isFree, slotGroup } from './catalog.js?v=1792037245';
-import { ROSTER } from '../data/roster.js?v=1792037245';
+import { CATALOG, itemById, isFree, slotGroup } from './catalog.js?v=1792039444';
+import { ROSTER } from '../data/roster.js?v=1792039444';
 
 export const EMOTE_SLOTS = 6;
 export const BASE_SPRITE_DIR = 'assets/creatures';
