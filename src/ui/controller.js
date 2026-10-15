@@ -5,8 +5,8 @@
 import {
   COLORS, MASTER, PHASES, MAX_HAND,
   createGame, applyAction, legalActions, computePayment, evolveOptions, getCurrentPlayer, tokenCount,
-} from '../core/index.js?v=1792040398';
-import { chooseAction } from '../ai/heuristic.js?v=1792040398';
+} from '../core/index.js?v=1792047695';
+import { chooseAction } from '../ai/heuristic.js?v=1792047695';
 
 export const BALLS = {
   monster: { file: 'monster', name: '노리개', short: '노리' },
