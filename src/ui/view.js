@@ -196,8 +196,19 @@ export function railHTML(ctrl) {
       <span class="ring" style="--p:${pct}">${avatarHTML(p.name, p.id, { me: isMe })}</span>
       ${p.isAI ? `<span class="bot">${aiTag(ctrl)}</span>` : ''}
       <span class="rsc"><b>${pts}</b></span>
-    </button>`;
+    </button>${isMe ? '' : railStatsHTML(p)}`;
   }).join('');
+}
+
+// 상대 보물·보너스 요약: 0인 색은 숨겨 초반엔 비어 있고, 가진 것만 아이콘+숫자로 (보너스는 작은 금색 +n)
+function railStatsHTML(p) {
+  const bonus = getBonuses(p);
+  const cells = TOKEN_KEYS.map((k) => {
+    const t = p.tokens[k] || 0, b = k === MASTER ? 0 : (bonus[k] || 0);
+    if (!t && !b) return '';
+    return `<span class="rs-cell" title="${BALLS[k].name} 보물 ${t} · 보너스 ${b}">${ballImg(k, 'rs-ic')}<b>${t}</b>${b ? `<i>+${b}</i>` : ''}</span>`;
+  }).join('');
+  return `<div class="rail-stats" aria-label="보물 ${tokenCount(p)}개">${cells || '<span class="rs-none">—</span>'}</div>`;
 }
 
 
@@ -252,7 +263,7 @@ function handHTML(ctrl) {
   const me = ctrl.me;
   if (!me.hand.length) return '<div class="empty-note">찜한 카드 없음 (최대 3장)</div>';
   return me.hand.map((card) => `
-    <button class="rsv ${ctrl.canBuy(card.id) ? 'buyable' : ctrl.canBuyAfterTake(card.id) ? 'buyable-next' : ''}" data-action="card" data-card="${card.id}" data-zone="hand" ${ctrl.isHumanTurn ? '' : 'disabled'}>
+    <button class="rsv ${ctrl.canBuy(card.id) ? 'buyable' : ctrl.canBuyAfterTake(card.id) ? 'buyable-next' : ''}" data-action="card" data-card="${card.id}" data-zone="hand">
       ${staticSprite(card, 'tiny', true)}${card.name} <small>${tierLabel[card.tier]}${card.points ? ` · ${card.points}점` : ''}</small></button>`).join('');
 }
 
@@ -340,7 +351,7 @@ export function aiToastHTML(ctrl) {
 }
 
 // 성장 성공 연출: 이전 인물이 빛에 휩싸였다가 다음 단계 인물로 터져 나온다 (CSS .evofx)
-export function evolveFxHTML(from, to) {
+export function evolveFxHTML(from, to, owner = null) {
   const sparks = Array.from({ length: 14 }, (_, i) => `<i style="--a:${(i * 360) / 14}deg;--r:${46 + (i % 3) * 14}px;--dl:${(i % 4) * 40}ms"></i>`).join('');
   return `<div class="evofx" role="status" aria-live="polite">
     <div class="evo-rays"></div><div class="evo-ring"></div>
@@ -349,7 +360,7 @@ export function evolveFxHTML(from, to) {
       <img class="evo-to" src="${animSrc(to.id)}" onerror="this.onerror=null;this.src='${pokeSrc(to.id)}'" alt="${to.name}">
       <div class="evo-sparks">${sparks}</div>
     </div>
-    <div class="evo-txt"><small>${from.name}</small><b>${to.name}</b><span>성장!</span></div>
+    <div class="evo-txt">${owner ? `<em class="evo-who">${esc(owner)}의 인물</em>` : ''}<small>${from.name}</small><b>${to.name}</b><span>성장!</span></div>
   </div>`;
 }
 
@@ -606,11 +617,12 @@ function rankedPanelHTML({ profile, gate, ban, rankedDisp }) {
     <button class="btn bigstart ranked" data-action="match" ${lock || ban ? 'disabled' : ''}>${lock ? '🔒 랭킹전 잠김' : '랭킹전 시작'}<small>4인 대전 · 시범(비공식)</small></button>`;
 }
 
-export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false }) {
+export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' } }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
   const name = esc(options.playerName || '도사');
   const ranked = options.mode === 'ranked';
+  const friendly = options.mode === 'friendly';
   const rankedDisp = displayOf(profile.ranked);
   const normalPanel = `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
         `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
@@ -631,13 +643,11 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
     <div class="home-match">
       <div class="modetabs" role="tablist" aria-label="모드 선택">
-        <button class="modetab ${ranked ? '' : 'sel'}" role="tab" data-action="mode" data-mode="normal">일반전</button>
+        <button class="modetab ${!ranked && !friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="normal">일반전</button>
         <button class="modetab ${ranked ? 'sel' : ''}" role="tab" data-action="mode" data-mode="ranked">랭킹전${gate.unlocked ? '' : ' 🔒'}</button>
+        <button class="modetab ${friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="friendly">친목전</button>
       </div>
-      ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : normalPanel}
-      <div class="friend-row"><span class="nonrank">친구 방 · 비랭크</span>
-      <div class="btnrow"><button class="btn alt" data-action="room-create">친구와 방 만들기</button>
-      <button class="btn alt" data-action="room-join">코드로 참가</button></div></div>
+      ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : friendly ? lobbyPanelHTML(lobby) : normalPanel}
     </div>
     <nav class="tabbar">
       <button data-action="dex"><span>📖</span>인물록</button>
@@ -672,7 +682,7 @@ export function queueHTML(v) {
     cd = `<div class="cd"><b class="dots">…</b><small>${v.fillBots ? '' : '봇 채움 꺼짐 · '}상대를 기다리는 중</small></div>`;
   }
   const tag = v.ranked ? `<div class="modetag ranked">랭킹전 · ${SEASON_LABEL}</div>`
-    : v.isRoom ? '<div class="modetag">친구 방 · 비랭크</div>' : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
+    : v.isRoom ? `<div class="modetag">친목전${v.locked ? ' · 🔒 비밀방' : ''} · 비랭크</div>` : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
   return `<div class="overlay screen queue">
     <div class="title big">${esc(v.title)}<small>${have}/${v.size}명</small></div>
     ${tag}
@@ -688,14 +698,52 @@ export function queueHTML(v) {
   </div>`;
 }
 
-export function joinCodeHTML(notice = '') {
+// ---------- 친목전 로비 ----------
+function lobbyPanelHTML(lobby) {
+  let list;
+  if (lobby.status === 'offline') list = '<p class="lobby-empty">온라인에 연결되어 있지 않아 방 목록을 볼 수 없어요.</p>';
+  else if (lobby.status !== 'ok') list = '<p class="lobby-empty">방 목록을 불러오는 중…</p>';
+  else if (!lobby.rooms.length) list = '<p class="lobby-empty">열린 방이 없어요. 첫 방을 만들어 보세요!</p>';
+  else {
+    list = lobby.rooms.map((r) => {
+      const full = r.playerCount >= r.size;
+      return `<button class="lobby-room ${full ? 'full' : ''}" data-action="lobby-join" data-code="${esc(r.code)}" ${full ? 'disabled' : ''}>
+        <span class="lr-title">${r.locked ? '<i class="lr-lock" aria-label="비밀번호">🔒</i>' : ''}${esc(r.title)}</span>
+        <span class="lr-host">방장 ${esc(r.hostName)}</span>
+        <span class="lr-n ${full ? 'full' : ''}">${full ? '가득' : `${r.playerCount}/${r.size}`}</span>
+      </button>`;
+    }).join('');
+  }
+  return `<div class="lobby">
+      <div class="lobby-head"><span class="nonrank">친구와 자유롭게 · 랭크 점수 변동 없음</span>
+        <button class="btn primary sm" data-action="lobby-create">+ 방 만들기</button></div>
+      <div class="lobby-list">${list}</div>
+    </div>`;
+}
+
+export function lobbyCreateHTML({ name, size, error = '' }) {
   return `<div class="overlay"><div class="panel">
-    <div class="title big">코드로 참가</div>
-    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
-    <p class="sheet-p">친구가 알려준 6자리 방 코드를 입력하세요.</p>
-    <input id="joincode" class="netinput code" maxlength="6" placeholder="ABC123" autocomplete="off">
-    <div class="btnrow"><button class="btn ghost" data-action="join-close">취소</button>
-    <button class="btn primary" data-action="join-go">참가</button></div>
+    <div class="title big">방 만들기</div>
+    <p class="sheet-p">방 제목</p>
+    <input id="lobbytitle" class="netinput" maxlength="20" placeholder="${esc(name)}의 방" autocomplete="off" enterkeyhint="done">
+    <p class="sheet-p">인원</p>
+    <div class="seg" role="group" aria-label="인원">${[2, 3, 4].map((n) => `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="lobby-size" data-n="${n}">${n}인</button>`).join('')}</div>
+    <p class="sheet-p">비밀번호 <small>(선택 · 비우면 누구나 입장)</small></p>
+    <input id="lobbypw" class="netinput" maxlength="12" placeholder="없음" autocomplete="off" enterkeyhint="done">
+    ${error ? `<p class="note">${esc(error)}</p>` : ''}
+    <div class="btnrow"><button class="btn ghost" data-action="lobby-create-close">취소</button>
+    <button class="btn primary" data-action="lobby-create-go">만들기</button></div>
+  </div></div>`;
+}
+
+export function lobbyPwHTML({ room, error = '' }) {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">🔒 비밀번호</div>
+    <p class="sheet-p"><b>${esc(room?.title ?? '방')}</b>에 들어가려면 비밀번호가 필요해요.</p>
+    <input id="lobbypwin" class="netinput" maxlength="12" placeholder="비밀번호" autocomplete="off" enterkeyhint="done" autofocus>
+    ${error ? `<p class="note">${esc(error)}</p>` : ''}
+    <div class="btnrow"><button class="btn ghost" data-action="lobby-pw-close">취소</button>
+    <button class="btn primary" data-action="lobby-pw-go">입장</button></div>
   </div></div>`;
 }
 

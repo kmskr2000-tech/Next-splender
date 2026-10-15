@@ -201,7 +201,8 @@ export function createController({ cards, seed, humanName = '나', aiNames = ['�
     },
 
     openCard(cardId) {
-      if (!this.isHumanTurn || this.game.phase !== PHASES.ACTION) return;
+      // 내 행동 차례가 아니면 정보만 보는 시트(구매·찜 버튼 없음)
+      if (!this.isHumanTurn || this.game.phase !== PHASES.ACTION) { this.viewCard(cardId); return; }
       this.balls = [];
       this.message = '';
       this.sheet = { kind: 'card', cardId };
@@ -234,7 +235,8 @@ export function createController({ cards, seed, humanName = '나', aiNames = ['�
       if (actor === this.human && this.game.turn > turnBefore) this.humanTurns += 1;
       this.balls = [];
       this.discard = {};
-      this.sheet = null;
+      // 상대가 둘 때는 내가 보고 있던 정보 시트를 닫지 않는다 (단, 행동용 시트는 닫음)
+      if (actor === this.human || (this.sheet && this.sheet.kind !== 'view' && this.sheet.kind !== 'opp')) this.sheet = null;
       this.message = '';
       for (const ev of res.events) {
         const line = describeEvent(ev, this);
@@ -245,9 +247,11 @@ export function createController({ cards, seed, humanName = '나', aiNames = ['�
       }
       if (this.log.length > 6) this.log = this.log.slice(-6);
       for (const ev of res.events) {
+        // 성장 연출은 누가 성장하든 모두에게 보인다 (player로 주인을 알린다)
+        if (ev.type === 'evolve') hooks.onEvolve?.(ev.from, ev.to, ev.player);
         if (ev.player !== this.human) continue;
         if (ev.type === 'buy') hooks.onCatch?.(ev.cardId, 'buy');
-        else if (ev.type === 'evolve') { hooks.onCatch?.(ev.to, 'evolve'); hooks.onEvolve?.(ev.from, ev.to); }
+        else if (ev.type === 'evolve') hooks.onCatch?.(ev.to, 'evolve');
       }
       if (this.finished) hooks.onEnd?.(this.game.ranking[0].player === this.human);
       hooks.onChange?.();

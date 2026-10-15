@@ -142,6 +142,10 @@ function classifyRooms(snap) {
         playerCount: 1 + guests, // host + guests
         created: r.created || 0,
         turnLimitMs: r.turnLimitMs || 45000,
+        kind: r.kind || 'match', // 'lobby' = 친목전 로비 방, 그 외 = 빠른대전/랭킹전 매칭 방
+        size: r.size || 4,
+        locked: !!r.pwHash,
+        pwHash: r.pwHash || '',
       });
     });
     // Newest first.
@@ -202,7 +206,7 @@ export class FirebaseRoom {
   // ---------- host ----------
 
   /** Host: create a room, return the 6-char code. */
-  async hostCreate(hostName = '', title = '', turnLimitMs = 45000) {
+  async hostCreate(hostName = '', title = '', turnLimitMs = 45000, meta = {}) {
     this.isHost = true;
     this.turnLimitMs = turnLimitMs;
     const db = getDb();
@@ -217,6 +221,10 @@ export class FirebaseRoom {
         title: title || `${hostName}의 방`,
         hostName: hostName || '?',
         turnLimitMs,
+        // 친목전 로비 방: kind/size/pwHash (비밀번호는 해시만 저장, 확인은 참가자 쪽에서)
+        ...(meta.kind ? { kind: String(meta.kind) } : {}),
+        ...(meta.size ? { size: Number(meta.size) } : {}),
+        ...(meta.pwHash ? { pwHash: String(meta.pwHash) } : {}),
       });
       this.code = code;
       // Host presence: unique hostId + heartbeat. If this client disconnects,

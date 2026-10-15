@@ -46,7 +46,7 @@ import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=17920
 import { createController, TRAINERS } from './controller.js?v=1792040398';
 import * as V from './view.js?v=1792040398';
 import { NetSession } from '../net/session.js?v=1792040398';
-import { listRooms } from '../net/fireroom.js?v=1792040398';
+import { listRooms, watchRooms } from '../net/fireroom.js?v=1792040398';
 import { getPoints, bonusList } from '../core/engine.js?v=1792040398';
 import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792040398';
 import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792040398';
@@ -95,7 +95,10 @@ let optionsOpen = false;
 let profileOpen = false;
 let firstRun = false; // 닉네임이 없으면 첫 접속: 홈에서 바로 닉네임 설정 창을 띄운다
 let profileError = '';
-let joinOpen = false;
+// 친목전 로비: 방 목록 구독 상태 + 방 만들기/비밀번호 창
+const lobby = { rooms: [], status: 'idle', unsub: null }; // status: idle|loading|ok|offline
+let lobbyCreate = null; // { error } while the create-room panel is open
+let lobbyPw = null; // { code, error } while the password prompt is open
 let shopOpen = false;
 let shopTab = 'avatarFrame';
 let shopToast = '';
@@ -173,13 +176,14 @@ function render() {
 
   checkNetFail();
   { const ab = $('actionbar'); if (ab && ctrl) document.documentElement.style.setProperty('--dockh', ab.offsetHeight + 'px'); }
+  syncLobbyWatch();
   let overlay;
   if (ctrl) overlay = ctrl.finished ? V.endHTML(ctrl, lastResult) : '';
   else if (queue) overlay = V.queueHTML(queueView());
   else {
     const profile = loadProfile(storage);
     const banMin = profile.ranked.queueBanUntil > Date.now() ? Math.ceil((profile.ranked.queueBanUntil - Date.now()) / 60000) : 0;
-    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM });
+    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby });
     netNotice = '';
   }
   if (firstRun && !ctrl && !queue) overlay = V.profileHTML(options, { first: true, error: profileError });
@@ -187,7 +191,8 @@ function render() {
   else if (rulesOpen) overlay = V.rulesHTML();
   else if (achvOpen) overlay = V.achvHTML(loadAchv(storage).unlocked);
   else if (profileOpen) overlay = V.profileHTML(options, { error: profileError });
-  else if (joinOpen) overlay = V.joinCodeHTML(netNotice);
+  else if (lobbyCreate) overlay = V.lobbyCreateHTML({ name: myName(), size: options.queueSize, error: lobbyCreate.error });
+  else if (lobbyPw) overlay = V.lobbyPwHTML({ room: lobby.rooms.find((r) => r.code === lobbyPw.code), error: lobbyPw.error });
   else if (shopOpen) overlay = V.shopHTML({ inv: loadInventory(storage), tab: shopTab, toast: shopToast });
   else if (leaveOpen && ctrl && !ctrl.finished) overlay = V.leaveConfirmHTML({ voidLeave: isEarlyLeave(ctrl.game.turn, ctrl.game.players.length) });
   else if (optionsOpen) overlay = V.optionsHTML(options, !!ctrl && !ctrl.finished);
@@ -296,18 +301,21 @@ function renderAchvToast() {
 }
 
 let evoFxTimer = 0;
-function showEvolveFx(fromId, toId) {
+function showEvolveFx(fromId, toId, player) {
   const from = cardsById.get(fromId), to = cardsById.get(toId);
   if (!from || !to) return;
   document.querySelector('.evofx')?.remove();
-  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to));
+  // 내 성장이 아니면 누구의 성장인지 이름을 붙인다
+  const owner = ctrl && player != null && player !== ctrl.human ? ctrl.game.players[player]?.name : null;
+  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to, owner));
+  if (owner) sfx.evolve(); // 내 성장은 버튼을 누를 때 이미 소리가 난다
   const el = document.body.lastElementChild;
   clearTimeout(evoFxTimer);
   evoFxTimer = setTimeout(() => el.remove(), 2900);
 }
 
 const hooks = {
-  onEvolve: (fromId, toId) => showEvolveFx(fromId, toId),
+  onEvolve: (fromId, toId, player) => showEvolveFx(fromId, toId, player),
   onCatch: (cardId, kind) => {
     recordCatch(storage, cardId, kind);
     const card = cardsById.get(cardId);
@@ -412,22 +420,59 @@ async function startNetQueue(size, ranked = false) {
   else net.hostCreate(myName(), title, ranked ? RANKED.turnLimitMs : 45000);
 }
 
-function createFriendRoom() {
+// ---------- 친목전 로비 ----------
+// 시뮬(?sim=1)에서는 서버가 없으니 화면 확인용 예시 방을 보여 준다.
+const SIM_ROOMS = [
+  { code: 'SIMAAA', title: '퇴근 후 한 판', hostName: '솔이', playerCount: 2, size: 4, locked: false, kind: 'lobby' },
+  { code: 'SIMBBB', title: '우리 반 친구들만', hostName: '바우', playerCount: 1, size: 3, locked: true, pwHash: '', kind: 'lobby' },
+  { code: 'SIMCCC', title: '초보 환영 🙂', hostName: '달래', playerCount: 4, size: 4, locked: false, kind: 'lobby' },
+];
+function lobbyActive() { return !ctrl && !queue && options.mode === 'friendly'; }
+function syncLobbyWatch() {
+  const want = lobbyActive();
+  if (!want) { if (lobby.unsub) { lobby.unsub(); lobby.unsub = null; } if (lobby.status !== 'idle') lobby.status = 'idle'; return; }
+  if (lobby.status !== 'idle') return;
+  if (FORCE_SIM) { lobby.rooms = SIM_ROOMS; lobby.status = 'ok'; return; }
+  if (!onlineAvailable()) { lobby.status = 'offline'; return; }
+  lobby.status = 'loading';
+  try {
+    lobby.unsub = watchRooms((rooms) => {
+      lobby.rooms = rooms.filter((r) => r.kind === 'lobby');
+      lobby.status = 'ok';
+      render();
+    });
+  } catch { lobby.status = 'offline'; }
+}
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ohsp-pw:' + text));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function createLobbyRoom(title, size, pw) {
+  const clean = String(title || '').trim().slice(0, 20) || `${myName()}의 방`;
+  if (FORCE_SIM || !onlineAvailable()) { lobbyCreate = { error: '온라인 연결이 있어야 방을 만들 수 있어요.' }; render(); return; }
+  const pwHash = pw ? await sha256(pw) : '';
+  lobbyCreate = null;
   cancelQueue();
-  queue = { mode: 'net', size: options.queueSize, isRoom: true, deadline: 0, searching: false, starting: false, notice: '' };
+  queue = { mode: 'net', size, isRoom: true, title: clean, locked: !!pwHash, deadline: 0, searching: false, starting: false, notice: '' };
   openNet();
-  net.hostCreate(myName(), '친구방', 45000);
+  net.hostCreate(myName(), clean, 45000, { kind: 'lobby', size, pwHash });
   render();
 }
-
-function joinFriendRoom(code) {
-  const clean = String(code || '').trim().toUpperCase();
-  if (clean.length < 4) { netNotice = '방 코드를 확인해주세요.'; return false; }
+async function joinLobbyRoom(code, pw = null) {
+  const room = lobby.rooms.find((r) => r.code === code);
+  if (!room) { netNotice = '방이 사라졌어요. 목록을 다시 확인해 주세요.'; lobbyPw = null; render(); return; }
+  if (room.playerCount >= room.size) { netNotice = '방이 가득 찼어요.'; lobbyPw = null; render(); return; }
+  if (room.locked) {
+    if (pw == null) { lobbyPw = { code, error: '' }; render(); return; }
+    if (!pw || (await sha256(pw)) !== room.pwHash) { lobbyPw = { code, error: '비밀번호가 맞지 않아요.' }; render(); return; }
+  }
+  if (FORCE_SIM) { lobbyPw = null; netNotice = '시뮬 모드에서는 예시 방에 들어갈 수 없어요.'; render(); return; }
+  lobbyPw = null;
   cancelQueue();
-  queue = { mode: 'net', size: 4, isRoom: true, deadline: 0, searching: false, starting: false, notice: '' };
+  queue = { mode: 'net', size: room.size, isRoom: true, title: room.title, locked: room.locked, deadline: 0, searching: false, starting: false, notice: '' };
   openNet();
-  net.guestJoin(myName(), clean);
-  return true;
+  net.guestJoin(myName(), code);
+  render();
 }
 
 function dropNet() {
@@ -468,8 +513,8 @@ function queueView() {
   const names = net?.names?.length ? net.names : [myName()];
   const slots = names.map((name, i) => ({ name, me: net?.names?.length ? i === net.myIndex : true }));
   return {
-    title: q.isRoom ? '친구와 방' : q.ranked ? '랭킹전 매칭 중…' : '매칭 중…', size: q.size, slots, countdown: left, fillBots: q.ranked ? false : q.isRoom ? true : options.fillBots,
-    code: q.isRoom ? net?.shortCode : '', host: net?.role === 'host' && net.phase === 'hostlobby', isRoom: q.isRoom,
+    title: q.isRoom ? (q.title || '친목전 방') : q.ranked ? '랭킹전 매칭 중…' : '매칭 중…', size: q.size, slots, countdown: left, fillBots: q.ranked ? false : q.isRoom ? true : options.fillBots,
+    code: '', locked: !!q.locked, host: net?.role === 'host' && net.phase === 'hostlobby', isRoom: q.isRoom,
     notice: q.notice, starting: q.starting, ranked: !!q.ranked, waited, tierDisp,
   };
 }
@@ -524,6 +569,7 @@ function openNet() {
   net = new NetSession({
     onRender: () => render(),
     onGameStart: (c) => enterGame(c),
+    onEvolve: (fromId, toId, player) => showEvolveFx(fromId, toId, player),
     onGameEnd: () => { net = null; ctrl = null; queue = null; render(); },
     onNotice: (msg) => { netNotice = msg; if (queue) queue.notice = msg; render(); },
   });
@@ -600,7 +646,7 @@ document.addEventListener('click', (e) => {
   switch (d.action) {
     case 'dex': dexOpen = true; break;
     case 'dex-close': dexOpen = false; break;
-    case 'mode': options.mode = d.mode === 'ranked' ? 'ranked' : 'normal'; saveOptions(storage, options); netNotice = ''; break;
+    case 'mode': options.mode = ['ranked', 'friendly'].includes(d.mode) ? d.mode : 'normal'; saveOptions(storage, options); netNotice = ''; break;
     case 'shop': shopOpen = true; shopToast = ''; break;
     case 'shop-close': shopOpen = false; shopToast = ''; break;
     case 'shop-tab': shopTab = d.tab; shopToast = ''; break;
@@ -654,12 +700,15 @@ document.addEventListener('click', (e) => {
       break;
     case 'match': startQueue(options.queueSize); return;
     case 'queue-cancel': cancelQueue(); netNotice = ''; break;
-    case 'room-create': createFriendRoom(); return;
-    case 'room-join': joinOpen = true; netNotice = ''; break;
-    case 'join-close': joinOpen = false; netNotice = ''; break;
-    case 'join-go':
-      if (joinFriendRoom($('joincode')?.value)) { joinOpen = false; netNotice = ''; }
-      break;
+    case 'lobby-create': lobbyCreate = { error: '' }; netNotice = ''; break;
+    case 'lobby-create-close': lobbyCreate = null; break;
+    case 'lobby-size': options.queueSize = Number(d.n); saveOptions(storage, options); break;
+    case 'lobby-create-go':
+      createLobbyRoom($('lobbytitle')?.value, options.queueSize, String($('lobbypw')?.value ?? '').trim());
+      return;
+    case 'lobby-join': netNotice = ''; joinLobbyRoom(d.code); return;
+    case 'lobby-pw-close': lobbyPw = null; break;
+    case 'lobby-pw-go': if (lobbyPw) joinLobbyRoom(lobbyPw.code, String($('lobbypwin')?.value ?? '')); return;
     case 'room-start': if (net && queue) startNetGame(queue, options.fillBots ? Math.max(0, queue.size - net.names.length) : 0); return;
     case 'profile': profileOpen = true; pendingAvatar = options.avatar; break;
     case 'avatar': pendingAvatar = d.name; saveProfile($('profname')?.value ?? options.playerName, d.name); break;
@@ -738,7 +787,9 @@ document.addEventListener('click', (e) => {
 
 // 닉네임 입력 중 Enter = 저장
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target?.id === 'profname') document.querySelector('[data-action="profile-save"]')?.click();
+  if (e.key !== 'Enter') return;
+  const go = { profname: 'profile-save', lobbytitle: 'lobby-create-go', lobbypw: 'lobby-create-go', lobbypwin: 'lobby-pw-go' }[e.target?.id];
+  if (go) document.querySelector(`[data-action="${go}"]`)?.click();
 });
 
 window.__render = render; // automated tests

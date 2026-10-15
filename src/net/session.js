@@ -101,7 +101,7 @@ export class NetSession {
 
   // ---------- host ----------
 
-  async hostCreate(name, title = '', turnLimitMs = DEFAULT_TURN_LIMIT_MS) {
+  async hostCreate(name, title = '', turnLimitMs = DEFAULT_TURN_LIMIT_MS, meta = {}) {
     this.role = 'host';
     this.myName = this.cleanName(name);
     this.turnLimitMs = turnLimitMs;
@@ -114,7 +114,7 @@ export class NetSession {
     this.cb.onRender();
     try {
       if (this.usePeer) {
-        this.shortCode = await this.room.hostCreate(this.myName, title, this.turnLimitMs);
+        this.shortCode = await this.room.hostCreate(this.myName, title, this.turnLimitMs, meta);
         this.phase = 'hostlobby';
       } else {
         const { peerIdx, code } = await this.room.createOffer();
@@ -389,7 +389,8 @@ export class NetSession {
     // hooks are empty — no dex/save/achievement recording in multiplayer (v1).
     // AI seats (if any) are acted by the host; their actions are relayed like any other.
     // Multiplayer AI is fixed to hard difficulty.
-    const ctrl = createController({ cards: CARDS, seed, mp: { names, me: myIndex, aiNames }, hooks: {}, difficulty: 'hard' });
+    // onEvolve only drives the shared evolve effect (UI), not persistence.
+    const ctrl = createController({ cards: CARDS, seed, mp: { names, me: myIndex, aiNames }, hooks: { onEvolve: (...a) => this.cb.onEvolve?.(...a) }, difficulty: 'hard' });
     const raw = ctrl.dispatch.bind(ctrl);
     const self = this;
     // Expose turn timer to UI via mp object.

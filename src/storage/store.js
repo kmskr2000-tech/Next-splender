@@ -129,7 +129,7 @@ export function loadOptions(storage) {
     fillBots: o.fillBots !== false,
     bgm: o.bgm !== false,
     sfx: o.sfx !== false,
-    mode: o.mode === 'ranked' ? 'ranked' : 'normal',
+    mode: ['ranked', 'friendly'].includes(o.mode) ? o.mode : 'normal',
   };
 }
 
@@ -145,7 +145,7 @@ export function saveOptions(storage, opts) {
     fillBots: opts.fillBots !== false,
     bgm: !!opts.bgm,
     sfx: !!opts.sfx,
-    mode: opts.mode === 'ranked' ? 'ranked' : 'normal',
+    mode: ['ranked', 'friendly'].includes(opts.mode) ? opts.mode : 'normal',
   });
 }
 
