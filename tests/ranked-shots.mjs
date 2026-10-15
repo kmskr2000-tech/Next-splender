@@ -44,6 +44,14 @@ async function startRankedGame() {
 
 // 1. home, normal tab
 await page.goto(BASE + '?sim=1&fast=1');
+// 0. first visit: nickname prompt blocks the home until a name is saved
+await page.waitForSelector('#profname');
+ok((await page.textContent('.overlay .title')).includes('어서 오세요'), 'first-run nickname prompt');
+await shot('0-first-nickname');
+await click('[data-action="profile-save"]');
+ok((await page.textContent('.overlay')).includes('닉네임을 입력해 주세요'), 'empty nickname rejected');
+await page.fill('#profname', '테스터');
+await page.press('#profname', 'Enter');
 await page.waitForSelector('.home');
 await wait(300);
 await shot('1-home-normal');
@@ -60,7 +68,8 @@ ok(await page.locator('.bigstart.ranked:not([disabled])').count() === 1, 'ranked
 
 // 3. queue (2 of 4 seats filled, no bots)
 await click('[data-action="match"]');
-await wait(700);
+// sim users join on the 500ms tick after SIM_JOIN_MS; wait for one instead of a fixed 700ms (was flaky)
+await page.waitForSelector('.queue .botmark.sim', { timeout: 3000 }).catch(() => {});
 await shot('3-queue');
 ok(await page.locator('.queue .botmark:not(.sim)').count() === 0, 'no BOT marks in ranked queue');
 ok(await page.locator('.queue .botmark.sim').count() >= 1, 'sim user label present');

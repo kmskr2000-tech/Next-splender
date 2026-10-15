@@ -1,17 +1,17 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792039978';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792039978';
-import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792039978';
-import { dexSummary } from '../storage/store.js?v=1792039978';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792039978';
-import { ROSTER, LINES } from '../data/roster.js?v=1792039978';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792039978';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792039978';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792039978';
-import { displayOf } from '../meta/rating.js?v=1792039978';
-import { SPRITE_BOX } from './spritebox.js?v=1792039978';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792040398';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792040398';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792040398';
+import { dexSummary } from '../storage/store.js?v=1792040398';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792040398';
+import { ROSTER, LINES } from '../data/roster.js?v=1792040398';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792040398';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792040398';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792040398';
+import { displayOf } from '../meta/rating.js?v=1792040398';
+import { SPRITE_BOX } from './spritebox.js?v=1792040398';
 
 
 const ASSET = 'assets';
@@ -699,14 +699,16 @@ export function joinCodeHTML(notice = '') {
   </div></div>`;
 }
 
-export function profileHTML(options) {
+export function profileHTML(options, { first = false, error = '' } = {}) {
   return `<div class="overlay"><div class="panel">
-    <div class="title big">프로필</div>
+    <div class="title big">${first ? '어서 오세요!' : '프로필'}</div>
+    ${first ? '<p class="sheet-p">함께 놀 친구들에게 보일 <b>닉네임</b>을 정해 주세요. 나중에 홈의 프로필에서 바꿀 수 있어요.</p>' : ''}
     <p class="sheet-p">닉네임</p>
-    <input id="profname" class="netinput" maxlength="12" placeholder="도사" value="${esc(options.playerName)}">
+    <input id="profname" class="netinput" maxlength="12" placeholder="${first ? '닉네임 (최대 12자)' : '도사'}" value="${esc(options.playerName)}" ${first ? 'autofocus enterkeyhint="done"' : ''}>
+    ${error ? `<p class="note">${esc(error)}</p>` : ''}
     <p class="sheet-p">대표 캐릭터</p>
     <div class="avpick">${AVATARS.map((n) => `<button class="avopt ${options.avatar === n ? 'sel' : ''}" data-action="avatar" data-name="${n}">${avatarHTML(n, 0, { cls: 'md' })}<span>${n}</span></button>`).join('')}</div>
-    <div class="btnrow"><button class="btn primary" data-action="profile-save">저장</button></div>
+    <div class="btnrow"><button class="btn primary" data-action="profile-save">${first ? '시작하기' : '저장'}</button></div>
   </div></div>`;
 }
 

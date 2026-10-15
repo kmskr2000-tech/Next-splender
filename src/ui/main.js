@@ -41,23 +41,23 @@ function showInAppGuide() {
 }
 showInAppGuide();
 
-import { CARDS } from '../data/cards.js?v=1792039978';
-import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792039978';
-import { createController, TRAINERS } from './controller.js?v=1792039978';
-import * as V from './view.js?v=1792039978';
-import { NetSession } from '../net/session.js?v=1792039978';
-import { listRooms } from '../net/fireroom.js?v=1792039978';
-import { getPoints, bonusList } from '../core/engine.js?v=1792039978';
-import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792039978';
-import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792039978';
+import { CARDS } from '../data/cards.js?v=1792040398';
+import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792040398';
+import { createController, TRAINERS } from './controller.js?v=1792040398';
+import * as V from './view.js?v=1792040398';
+import { NetSession } from '../net/session.js?v=1792040398';
+import { listRooms } from '../net/fireroom.js?v=1792040398';
+import { getPoints, bonusList } from '../core/engine.js?v=1792040398';
+import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792040398';
+import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792040398';
 import {
   browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult,
   loadProfile, recordNormalGame, recordRankedMatch, recordRankedLeave, rankedDisplay,
   loadInventory, claimFreeItem, equipOwnedItem,
-} from '../storage/store.js?v=1792039978';
-import { resolveMatch, isEarlyLeave } from '../meta/rating.js?v=1792039978';
-import { RANKED, RANKED_UNLOCK, rankedUnlockStatus } from '../meta/config.js?v=1792039978';
-import { itemById, itemName } from '../meta/catalog.js?v=1792039978';
+} from '../storage/store.js?v=1792040398';
+import { resolveMatch, isEarlyLeave } from '../meta/rating.js?v=1792040398';
+import { RANKED, RANKED_UNLOCK, rankedUnlockStatus } from '../meta/config.js?v=1792040398';
+import { itemById, itemName } from '../meta/catalog.js?v=1792040398';
 
 // App flow: home (lobby) -> matching queue / friend room -> in-game -> result -> home.
 // There is no solo mode: bots exist only as seat fillers when a queue times out.
@@ -93,6 +93,8 @@ let rulesOpen = false;
 let achvOpen = false;
 let optionsOpen = false;
 let profileOpen = false;
+let firstRun = false; // 닉네임이 없으면 첫 접속: 홈에서 바로 닉네임 설정 창을 띄운다
+let profileError = '';
 let joinOpen = false;
 let shopOpen = false;
 let shopTab = 'avatarFrame';
@@ -108,6 +110,7 @@ V.setMyCosmetics(loadInventory(storage).equipped);
 
 const $ = (id) => document.getElementById(id);
 const myName = () => options.playerName || '도사';
+firstRun = !options.playerName;
 const onlineAvailable = () => !FORCE_SIM && typeof window.firebase !== 'undefined';
 
 function setHTML(id, html) {
@@ -179,10 +182,11 @@ function render() {
     overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM });
     netNotice = '';
   }
-  if (dexOpen) overlay = V.dexHTML(loadDex(storage), CARDS);
+  if (firstRun && !ctrl && !queue) overlay = V.profileHTML(options, { first: true, error: profileError });
+  else if (dexOpen) overlay = V.dexHTML(loadDex(storage), CARDS);
   else if (rulesOpen) overlay = V.rulesHTML();
   else if (achvOpen) overlay = V.achvHTML(loadAchv(storage).unlocked);
-  else if (profileOpen) overlay = V.profileHTML(options);
+  else if (profileOpen) overlay = V.profileHTML(options, { error: profileError });
   else if (joinOpen) overlay = V.joinCodeHTML(netNotice);
   else if (shopOpen) overlay = V.shopHTML({ inv: loadInventory(storage), tab: shopTab, toast: shopToast });
   else if (leaveOpen && ctrl && !ctrl.finished) overlay = V.leaveConfirmHTML({ voidLeave: isEarlyLeave(ctrl.game.turn, ctrl.game.players.length) });
@@ -659,7 +663,13 @@ document.addEventListener('click', (e) => {
     case 'room-start': if (net && queue) startNetGame(queue, options.fillBots ? Math.max(0, queue.size - net.names.length) : 0); return;
     case 'profile': profileOpen = true; pendingAvatar = options.avatar; break;
     case 'avatar': pendingAvatar = d.name; saveProfile($('profname')?.value ?? options.playerName, d.name); break;
-    case 'profile-save': saveProfile($('profname')?.value, pendingAvatar || options.avatar); profileOpen = false; break;
+    case 'profile-save': {
+      const typed = String($('profname')?.value ?? '').trim();
+      if (firstRun && !typed) { profileError = '닉네임을 입력해 주세요.'; break; }
+      saveProfile(typed, pendingAvatar || options.avatar);
+      profileOpen = false; firstRun = false; profileError = '';
+      break;
+    }
     case 'rematch':
       curMatch = null;
       dropNet(); ctrl = null; optionsOpen = false; clearTimeout(aiTimer); aiTimer = null;
@@ -724,6 +734,11 @@ document.addEventListener('click', (e) => {
     default: return;
   }
   render();
+});
+
+// 닉네임 입력 중 Enter = 저장
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target?.id === 'profname') document.querySelector('[data-action="profile-save"]')?.click();
 });
 
 window.__render = render; // automated tests
