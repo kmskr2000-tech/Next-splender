@@ -223,6 +223,10 @@ button.card:not(:disabled):active { transform: translateY(1px); }
   background: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--c, var(--t1)) 14%, transparent) 0, color-mix(in srgb, var(--c, var(--t1)) 5%, transparent) 55%, transparent 72%);
 }
 .card .sprite { position: absolute; max-width: none; width: calc(96px * var(--k, .6) * var(--s, 1)); height: auto; left: calc(50% - var(--cx, 48) * var(--k, .6) * var(--s, 1) * 1px); top: calc(50% - var(--cy, 48) * var(--k, .6) * var(--s, 1) * 1px); image-rendering: pixelated; }
+/* 카드 속 대기 모션: GIF 숨쉬기(1px) 위에 아주 작은 위아래 흔들림. 카드마다 위상(--d)이 다르다 */
+@keyframes cardIdle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+.card .art .sprite { animation: cardIdle 3.2s ease-in-out var(--d, 0s) infinite; }
+@media (prefers-reduced-motion: reduce) { .card .art .sprite { animation: none; } }
 .card.rare .art { background: radial-gradient(circle at 50% 55%, rgba(78,143,126,.32) 0, rgba(78,143,126,.1) 55%, transparent 72%); }
 .card.legend .art { background: radial-gradient(circle at 50% 55%, rgba(201,162,74,.42) 0, rgba(200,64,47,.1) 55%, transparent 72%); }
 .card .nm { font-family: var(--f-pixel); font-size: 11px; margin: 3px 0 4px; line-height: 1.25; word-break: keep-all; letter-spacing: -.02em; }

@@ -48,7 +48,9 @@ function spriteStyle(id) {
   if (!b) return '';
   const bw = b[2] - b[0], bh = b[3] - b[1];
   const k = Math.min((ART_H * 0.88) / bh, ART_W / bw, 1.4);
-  return `style="--k:${k.toFixed(3)};--cx:${(b[0] + b[2]) / 2};--cy:${(b[1] + b[3]) / 2}"`;
+  // --d: per-card idle phase so cards on the table don't bob in lockstep
+  const d = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 32 / 10;
+  return `style="--k:${k.toFixed(3)};--cx:${(b[0] + b[2]) / 2};--cy:${(b[1] + b[3]) / 2};--d:-${d}s"`;
 }
 // Own cards with an equipped skin use the skin PNG (no gif); everything else keeps the animated gif.
 const animSprite = (card, mine = false) => {

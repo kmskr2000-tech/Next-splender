@@ -22,7 +22,19 @@
 4. 결과를 96x96 투명 PNG로 정규화 → `assets/creatures/{id}.png` → `tools/sprites/spritebox.py`로 크롭 데이터 갱신
 5. idle 애니메이션은 상위 등급(희귀·전설)부터
 
-## 연결 조건 (현재 막힘)
+## 실행 결과 (2026-10-15, D17)
+- 연결: MCP `pixellab` 정상, 구독 Tier 1(월 2000 generations, 2026-11-14 갱신)
+- 생성: `create_1_direction_object` 80px·16후보 × 6작업(각 15 gen) → 90장 + 재생성(자격루·처용·거북선·세종·구미호 후보)
+  - 공통 프롬프트·인물별 설명: `tools/pixellab/prompts.json`, 카드↔오브젝트 ID: `tools/pixellab/objects.json`
+  - 화풍 기준(style_images): 기존 t2-002·legend-002·t2-011 을 80x80 투명으로 맞춰 사용
+- 대기 모션: `animate_object` v3, 4프레임(+원본 1) 약 1 gen/장. 요청 `tools/pixellab/animate_all.py`(429 동시 한도 자동 대기)
+- 빌드: `tools/pixellab/fetch_build.py <repo> <cache>` → PNG·GIF를 같은 위치로 정규화(96x96, 바닥 11px)
+  - backblaze 직링크는 환경 네트워크에서 차단 → `api.pixellab.ai/mcp/objects/{id}/download` ZIP 사용
+  - 불량 모션 카드는 `tools/pixellab/idle_gif.py`(1px 숨쉬기)로 대체 목록 관리
+- 카드 CSS: `.card .art .sprite` 3.2s 위아래 1.5px 흔들림, 카드별 위상(--d), reduced-motion 시 끔
+- 기존 생성기(`tools/sprites/`)는 유지(폴백·아바타용). 기존 3단계 후광 링은 새 도트에 없음
+
+## 연결 조건 (해결됨)
 - 환경 Network access에 `api.pixellab.ai` 허용
 - 시크릿 `PIXELLAB_API_KEY` 등록 → 저장소 `.mcp.json`이 읽음
 - 새 세션에서 연결
