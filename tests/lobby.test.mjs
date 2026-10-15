@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { __setMockDb, listRooms, claimName, nameKey } from '../src/net/fireroom.js?v=1792040398';
 import { NetSession } from '../src/net/session.js?v=1792040398';
+import { encodeLook, decodeLook, sanitizeLook } from '../src/ui/look.js?v=1792040398';
 
 // ---- tiny in-memory RTDB (only what fireroom.js uses) ----
 class MockDb {
@@ -62,6 +63,8 @@ __setMockDb(db);
 
 const host = new NetSession(cb());
 const guest = new NetSession(cb());
+host.myLook = encodeLook({ hat: 'gat', hair: 'sangtu', cloth: 'dopo', tint: 'blue' });
+guest.myLook = encodeLook({ hat: 'hwagwan', hair: 'twin', face: 'grin', bg: 'peach' });
 
 await t('host creates a lobby room with title/size/password hash', async () => {
   await host.hostCreate('방장', '퇴근 후 한 판', 45000, { kind: 'lobby', size: 3, pwHash: 'abc123' });
@@ -101,6 +104,19 @@ await t('guest joins the lobby room and both see 2 players', async () => {
   assert.equal(guest.phase, 'guestlobby');
   const r = (await listRooms()).find((x) => x.code === host.shortCode);
   assert.equal(r.playerCount, 2);
+});
+
+await t('looks: room roster carries every seat look code', async () => {
+  for (let i = 0; i < 50 && guest.looks.length < 2; i++) await sleep(10);
+  assert.equal(decodeLook(host.looks[1]).hat, 'hwagwan');
+  assert.equal(decodeLook(guest.looks[0]).hat, 'gat');
+  assert.equal(decodeLook(guest.looks[0]).tint, 'blue');
+});
+await t('looks: sanitize/encode round trip, junk falls back to defaults', () => {
+  const l = sanitizeLook({ hair: 'jjok', hat: 'nope', face: 'wink', cloth: 'armor', tint: 'ink', bg: 'sky', extra: 1 });
+  assert.equal(l.hat, 'none');
+  assert.deepEqual(decodeLook(encodeLook(l)), l);
+  assert.equal(decodeLook('<script>').hair, 'base');
 });
 
 await t('chat: guest line is relayed by host to everyone with sender name', async () => {

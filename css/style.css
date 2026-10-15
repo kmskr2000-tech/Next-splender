@@ -756,7 +756,7 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 
 /* ===== 내 캐릭터 꾸미기 (파츠 레이어 아바타) ===== */
 .av.look { position: relative; overflow: hidden; border-radius: 50%; background: var(--bg, #F3E7CF); padding: 0; flex: none; }
-.av.look img { position: absolute; left: -12.5%; top: -4%; width: 125%; height: 125%; max-width: none; image-rendering: pixelated; pointer-events: none; }
+.av.look img { position: absolute; left: 0; top: 4%; width: 100%; height: 100%; max-width: none; image-rendering: pixelated; pointer-events: none; }
 .lk { margin: 4px 0 6px; }
 .lk-top { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 10px; }
 .lk-top .av.lg { width: 104px; height: 104px; }
