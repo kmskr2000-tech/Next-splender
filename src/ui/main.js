@@ -120,8 +120,7 @@ const $ = (id) => document.getElementById(id);
 const chat = createChatWidget($('chat'), { send: (t) => !!net?.sendChat(t) });
 function renderChat() {
   const live = !!net && ['hostlobby', 'guestlobby', 'playing'].includes(net.phase);
-  document.getElementById('chat').dataset.mode = ctrl ? 'game' : 'lobby';
-  chat.update({ visible: live, log: net?.chatLog || [], myIndex: net?.myIndex ?? -1 });
+  chat.update({ visible: live, log: net?.chatLog || [], mode: ctrl ? 'game' : 'lobby' });
 }
 const myName = () => options.playerName || '도사';
 firstRun = !options.playerName;
@@ -585,7 +584,7 @@ function openNet() {
     onRender: () => render(),
     onGameStart: (c) => enterGame(c),
     onEvolve: (fromId, toId, player) => showEvolveFx(fromId, toId, player),
-    onChat: () => { renderChat(); if (!chat.isOpen()) sfx.chat(); },
+    onChat: () => { renderChat(); sfx.chat(); },
     onGameEnd: () => { net = null; ctrl = null; queue = null; render(); },
     onNotice: (msg) => { netNotice = msg; if (queue) queue.notice = msg; render(); },
   });

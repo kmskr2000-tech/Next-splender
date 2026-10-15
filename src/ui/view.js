@@ -677,7 +677,7 @@ export function queueHTML(v) {
     const sl = v.slots[i];
     if (!sl) return `<div class="slot empty"><span class="av ini wait">?</span><span class="slotnm">대기 중…</span></div>`;
     const mark = sl.bot ? '<em class="botmark">BOT</em>' : sl.sim ? '<em class="botmark sim">시뮬 유저</em>' : sl.me ? '<em class="memark">나</em>' : '';
-    return `<div class="slot ${sl.me ? 'me' : ''}">${avatarHTML(sl.name, i, { me: sl.me })}
+    return `<div class="slot ${sl.me ? 'me' : ''}" data-seat="${i}">${avatarHTML(sl.name, i, { me: sl.me })}
       <span class="slotnm">${esc(sl.name)}</span>${mark}</div>`;
   }).join('');
   const have = v.slots.length;
