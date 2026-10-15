@@ -233,16 +233,18 @@ button.card:not(:disabled):active { transform: translateY(1px); }
 .card .sprite { position: absolute; max-width: none; width: calc(96px * var(--k, .6) * var(--s, 1)); height: auto; left: calc(50% - var(--cx, 48) * var(--k, .6) * var(--s, 1) * 1px); top: calc(50% - var(--cy, 48) * var(--k, .6) * var(--s, 1) * 1px); image-rendering: pixelated; }
 /* 카드 속 대기 모션: GIF 숨쉬기(1px) 위에 아주 작은 위아래 흔들림. 카드마다 위상(--d)이 다르다 */
 @keyframes cardIdle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
-.card .art .sprite { animation: cardIdle 3.2s ease-in-out var(--d, 0s) infinite; }
+.card .art .sprite { animation: none; } /* 차분하게: 카드 흔들림 없이 GIF 1px 숨쉬기만 */
 @media (prefers-reduced-motion: reduce) { .card .art .sprite { animation: none; } }
 .card.rare .art { background: radial-gradient(circle at 50% 55%, rgba(78,143,126,.32) 0, rgba(78,143,126,.1) 55%, transparent 72%); }
 .card.legend .art { background: radial-gradient(circle at 50% 55%, rgba(201,162,74,.42) 0, rgba(200,64,47,.1) 55%, transparent 72%); }
 .card .nm { font-family: var(--f-pixel); font-size: 11px; margin: 3px 0 4px; line-height: 1.25; word-break: keep-all; letter-spacing: -.02em; }
 .card .tag { display: block; width: max-content; margin: 0 auto 1px; font-family: var(--f-body); font-size: 9px; font-weight: 700; letter-spacing: 0; line-height: 1; padding: 2px 6px; border-radius: var(--r-chip); color: #fff; }
 .card .tag.rare { background: var(--jade-text); } .card .tag.legend { background: linear-gradient(90deg, #A98430, #C8402F); }
-.card .cost { width: 100%; display: flex; flex-wrap: wrap; gap: 2px 1px; justify-content: center; margin-top: auto; }
+.card .cost { width: 100%; display: flex; flex-wrap: wrap; gap: 1px 2px; justify-content: center; margin-top: auto; }
 .costchip { display: inline-flex; align-items: center; gap: 1px; font-family: var(--f-pixel); font-size: 11px; line-height: 1; background: var(--paper-2); border-radius: var(--r-chip); padding: 1px 4px 1px 1px; font-variant-numeric: tabular-nums; }
 .miniball { width: 16px; height: 16px; }
+.card .costchip { background: none; padding: 0; gap: 0; font-size: 12px; letter-spacing: -.04em; }
+.card .costchip .miniball { width: 13px; height: 13px; }
 .card .grow { position: absolute; right: 4px; top: 46px; z-index: 1; width: 14px; height: 14px; border-radius: 50%; background: var(--jade); color: #fff; font-size: 10px; line-height: 14px; text-align: center; font-weight: 700; }
 .card.has-grow .cost { padding-right: 0; }
 .b-monster { --c: var(--monster); } .b-super { --c: var(--super); } .b-hyper { --c: var(--hyper); }
@@ -597,7 +599,7 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 .card .evofrom { position: absolute; left: 3px; bottom: 2px; z-index: 2; width: 22px; height: 22px; pointer-events: none; }
 .card .evofrom .face { position: absolute; inset: 0; overflow: hidden; border-radius: 50%; background: #fff; border: 1.5px solid var(--band, var(--line)); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
 .card .evofrom img { position: absolute; max-width: none; width: calc(96px * var(--k, .25)); height: auto; left: calc(50% - var(--cx, 48) * var(--k, .25) * 1px); top: calc(50% - var(--cy, 48) * var(--k, .25) * 1px); image-rendering: pixelated; }
-.card .evofrom i { position: absolute; right: -5px; top: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink-2); color: #fff; font-style: normal; font-size: 8px; line-height: 12px; text-align: center; font-weight: 700; }
+.card .evofrom i { display: none; position: absolute; right: -5px; top: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--ink-2); color: #fff; font-style: normal; font-size: 8px; line-height: 12px; text-align: center; font-weight: 700; }
 .card .evofrom.mine .face { border: 2px solid var(--jade); box-shadow: 0 0 0 2px rgba(78,143,126,.35), 0 0 6px rgba(78,143,126,.6); }
 .card .evofrom.mine i { background: var(--jade); }
 
@@ -606,8 +608,7 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 /* 3단계 — 서기(瑞氣): 발밑에서 금빛 기운이 숨 쉬듯 차오르고 불티가 떠오른다 */
 .card.t-3 .art::before {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 62% 52% at 50% 100%, rgba(236,182,64,.62), rgba(236,182,64,.2) 55%, transparent 78%);
-  animation: seogi 2.8s ease-in-out infinite;
+  background: radial-gradient(ellipse 62% 52% at 50% 100%, rgba(236,182,64,.5), rgba(236,182,64,.16) 55%, transparent 78%);
 }
 .card.t-3 .art::after {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 200%; pointer-events: none;
@@ -615,7 +616,7 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
     radial-gradient(2.2px 2.2px at 18% 62%, #F6D57E 98%, transparent), radial-gradient(1.7px 1.7px at 74% 70%, #FFE9A8 98%, transparent),
     radial-gradient(2.2px 2.2px at 46% 84%, #E9BF5C 98%, transparent), radial-gradient(1.7px 1.7px at 88% 92%, #FFF3C4 98%, transparent),
     radial-gradient(1.7px 1.7px at 30% 96%, #F6D57E 98%, transparent), radial-gradient(2.2px 2.2px at 62% 54%, #FFE9A8 98%, transparent);
-  animation: emberUp 4.2s linear infinite; opacity: .9;
+  display: none; /* 불티 제거 (화면 정리) */
 }
 @keyframes seogi { 0%, 100% { opacity: .55; transform: scaleY(.9); transform-origin: 50% 100%; } 50% { opacity: 1; transform: scaleY(1.08); } }
 @keyframes emberUp { from { transform: translateY(0); } to { transform: translateY(-50%); } }
@@ -623,14 +624,14 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 /* 희귀 — 상서 구름: 청록 구름 기운이 등 뒤에서 천천히 돌고, 빛줄기가 카드를 훑는다 */
 .card.rare .art::before {
   content: ''; position: absolute; left: 50%; top: 55%; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none;
-  background: repeating-conic-gradient(from var(--spin), rgba(78,160,140,.30) 0 14deg, transparent 14deg 30deg);
+  background: repeating-conic-gradient(from var(--spin), rgba(78,160,140,.22) 0 14deg, transparent 14deg 30deg);
   -webkit-mask: radial-gradient(circle, #000 18%, transparent 62%); mask: radial-gradient(circle, #000 18%, transparent 62%);
-  animation: auraSpin 9s linear infinite;
+  animation: auraSpin 24s linear infinite;
 }
-.card.rare::after, .card.legend::after {
+.card.legend::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; border-radius: inherit;
   background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.55) 48%, rgba(255,255,255,.1) 54%, transparent 62%);
-  background-size: 260% 100%; background-position: 130% 0; animation: sheen 4.6s ease-in-out infinite;
+  background-size: 260% 100%; background-position: 130% 0; animation: sheen 9s ease-in-out infinite;
 }
 @keyframes auraSpin { to { --spin: 360deg; } }
 @keyframes sheen { 0%, 62% { background-position: 130% 0; } 100% { background-position: -40% 0; } }
@@ -640,13 +641,13 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
   border: 2px solid transparent; padding: 6px 0 4px;
   background: linear-gradient(var(--card), var(--card)) padding-box,
     conic-gradient(from var(--spin), #C8402F, #E3B130, #2E9C8A, #2E5FA8, #F1EEE4, #C8402F) border-box;
-  animation: auraSpin 6s linear infinite; box-shadow: 0 0 10px rgba(227,177,48,.35), var(--sh-1);
+  animation: auraSpin 12s linear infinite; box-shadow: 0 0 10px rgba(227,177,48,.35), var(--sh-1);
 }
 .card.legend .art::before {
   content: ''; position: absolute; left: 50%; top: 55%; width: 140px; height: 140px; margin: -70px 0 0 -70px; pointer-events: none;
   background: repeating-conic-gradient(from var(--spin), rgba(240,196,80,.55) 0 7deg, rgba(200,64,47,.18) 7deg 12deg, transparent 12deg 22deg);
   -webkit-mask: radial-gradient(circle, #000 14%, transparent 64%); mask: radial-gradient(circle, #000 14%, transparent 64%);
-  animation: auraSpin 14s linear infinite;
+  animation: auraSpin 28s linear infinite;
 }
 .card.legend .art::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -658,7 +659,7 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
   .card.rare::after, .card.legend::after, .card.legend { animation: none; }
 }
 /* 전설은 테두리 회전과 영입 맥박을 함께 */
-.card.legend.buyable { animation: auraSpin 6s linear infinite, buyPulse 1.6s ease-in-out infinite; }
+.card.legend.buyable { animation: auraSpin 12s linear infinite, buyPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .card.buyable, .rsv.buyable, .card.legend.buyable { animation: none; box-shadow: 0 0 0 3px rgba(78,143,126,.45), var(--sh-1); }
 }
