@@ -584,3 +584,112 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
 .tier-row.special .card .bonusicons { position: static; grid-area: meta; flex-direction: row; justify-self: end; align-self: start; margin-top: 1px; }
 .tier-row.special .card .cost { grid-area: cost; margin-top: 4px; justify-content: flex-start; }
 .tier-row.special .card.has-grow .grow { display: none; }
+
+/* ===== 등급 특수 이펙트 (D19): 후광 대신 등급마다 다른 기운 ===== */
+@property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+/* 3단계 — 서기(瑞氣): 발밑에서 금빛 기운이 숨 쉬듯 차오르고 불티가 떠오른다 */
+.card.t-3 .art::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 62% 52% at 50% 100%, rgba(236,182,64,.62), rgba(236,182,64,.2) 55%, transparent 78%);
+  animation: seogi 2.8s ease-in-out infinite;
+}
+.card.t-3 .art::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 200%; pointer-events: none;
+  background:
+    radial-gradient(2.2px 2.2px at 18% 62%, #F6D57E 98%, transparent), radial-gradient(1.7px 1.7px at 74% 70%, #FFE9A8 98%, transparent),
+    radial-gradient(2.2px 2.2px at 46% 84%, #E9BF5C 98%, transparent), radial-gradient(1.7px 1.7px at 88% 92%, #FFF3C4 98%, transparent),
+    radial-gradient(1.7px 1.7px at 30% 96%, #F6D57E 98%, transparent), radial-gradient(2.2px 2.2px at 62% 54%, #FFE9A8 98%, transparent);
+  animation: emberUp 4.2s linear infinite; opacity: .9;
+}
+@keyframes seogi { 0%, 100% { opacity: .55; transform: scaleY(.9); transform-origin: 50% 100%; } 50% { opacity: 1; transform: scaleY(1.08); } }
+@keyframes emberUp { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+
+/* 희귀 — 상서 구름: 청록 구름 기운이 등 뒤에서 천천히 돌고, 빛줄기가 카드를 훑는다 */
+.card.rare .art::before {
+  content: ''; position: absolute; left: 50%; top: 55%; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none;
+  background: repeating-conic-gradient(from var(--spin), rgba(78,160,140,.30) 0 14deg, transparent 14deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 62%); mask: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: auraSpin 9s linear infinite;
+}
+.card.rare::after, .card.legend::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; border-radius: inherit;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.55) 48%, rgba(255,255,255,.1) 54%, transparent 62%);
+  background-size: 260% 100%; background-position: 130% 0; animation: sheen 4.6s ease-in-out infinite;
+}
+@keyframes auraSpin { to { --spin: 360deg; } }
+@keyframes sheen { 0%, 62% { background-position: 130% 0; } 100% { background-position: -40% 0; } }
+
+/* 전설 — 단청 광채: 오방색 테두리가 돌고, 금빛 햇살이 등 뒤에서 퍼진다 */
+.card.legend {
+  border: 2px solid transparent; padding: 6px 0 4px;
+  background: linear-gradient(var(--card), var(--card)) padding-box,
+    conic-gradient(from var(--spin), #C8402F, #E3B130, #2E9C8A, #2E5FA8, #F1EEE4, #C8402F) border-box;
+  animation: auraSpin 6s linear infinite; box-shadow: 0 0 10px rgba(227,177,48,.35), var(--sh-1);
+}
+.card.legend .art::before {
+  content: ''; position: absolute; left: 50%; top: 55%; width: 140px; height: 140px; margin: -70px 0 0 -70px; pointer-events: none;
+  background: repeating-conic-gradient(from var(--spin), rgba(240,196,80,.55) 0 7deg, rgba(200,64,47,.18) 7deg 12deg, transparent 12deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 14%, transparent 64%); mask: radial-gradient(circle, #000 14%, transparent 64%);
+  animation: auraSpin 14s linear infinite;
+}
+.card.legend .art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 58%, rgba(255,236,170,.5), transparent 46%); animation: seogi 2.4s ease-in-out infinite;
+}
+.card.rare .sprite, .card.legend .sprite, .card.t-3 .sprite { z-index: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .card.t-3 .art::before, .card.t-3 .art::after, .card.rare .art::before, .card.legend .art::before, .card.legend .art::after,
+  .card.rare::after, .card.legend::after, .card.legend { animation: none; }
+}
+
+/* ===== 성장 성공 연출 ===== */
+.evofx {
+  position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 42%, rgba(255,240,196,.9) 0, rgba(120,84,30,.75) 28%, rgba(18,12,6,.9) 60%); pointer-events: none; /* 연출이 조작을 막지 않게: 2.9초 뒤 자동으로 사라짐 */
+  animation: evoBg .3s ease-out both;
+}
+.evo-stage { position: relative; width: 192px; height: 192px; }
+.evo-stage img { position: absolute; inset: 0; width: 192px; height: 192px; image-rendering: pixelated; }
+.evo-from { animation: evoFrom 1.05s ease-in forwards; }
+.evo-to { opacity: 0; animation: evoTo .9s cubic-bezier(.2,1.6,.4,1) .95s forwards; }
+.evo-rays {
+  position: absolute; left: 50%; top: 45%; width: 520px; height: 520px; margin: -260px 0 0 -260px; pointer-events: none; opacity: 0;
+  background: repeating-conic-gradient(from var(--spin), rgba(255,214,110,.55) 0 8deg, transparent 8deg 20deg);
+  -webkit-mask: radial-gradient(circle, #000 8%, transparent 62%); mask: radial-gradient(circle, #000 8%, transparent 62%);
+  animation: evoRaysIn .5s ease-out .9s forwards, auraSpin 8s linear infinite;
+}
+.evo-ring {
+  position: absolute; left: 50%; top: 45%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; pointer-events: none;
+  border: 4px solid #FFF3C4; opacity: 0; animation: evoRing .7s ease-out .95s forwards;
+}
+.evo-sparks i {
+  position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; background: #FFE08A; opacity: 0;
+  box-shadow: 0 0 6px #FFC93C; transform: rotate(var(--a)) translateY(0);
+  animation: evoSpark .8s ease-out calc(1s + var(--dl)) forwards;
+}
+.evo-sparks i:nth-child(3n) { background: #F28B6E; box-shadow: 0 0 6px #E8573A; }
+.evo-sparks i:nth-child(4n) { background: #8FD9C4; box-shadow: 0 0 6px #2E9C8A; }
+.evo-txt { position: relative; margin-top: 10px; padding: 8px 22px 10px; border-radius: 14px; background: rgba(18,12,6,.72); box-shadow: 0 0 0 1px rgba(255,224,138,.5); text-align: center; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.5); opacity: 0; animation: evoTxt .5s ease-out 1.25s forwards; }
+.evo-txt small { display: block; font-size: 12px; opacity: .85; }
+.evo-txt b { display: block; font-family: var(--f-pixel); font-size: 22px; font-weight: normal; color: #FFE7A0; }
+.evo-txt span { display: inline-block; margin-top: 4px; font-family: var(--f-pixel); font-size: 18px; letter-spacing: .1em; }
+@keyframes evoBg { from { opacity: 0; } }
+@keyframes evoFrom {
+  0% { filter: brightness(1); transform: scale(1); }
+  45% { filter: brightness(1.6) drop-shadow(0 0 8px #fff); transform: scale(1.04); }
+  70% { filter: brightness(4) drop-shadow(0 0 14px #fff); transform: scale(.98) translateY(-2px); }
+  100% { filter: brightness(10) drop-shadow(0 0 24px #fff); transform: scale(.6); opacity: 0; }
+}
+@keyframes evoTo {
+  0% { opacity: 1; transform: scale(.4); filter: brightness(8) drop-shadow(0 0 20px #fff); }
+  55% { transform: scale(1.14); filter: brightness(1.6) drop-shadow(0 0 10px #FFE08A); }
+  100% { opacity: 1; transform: scale(1); filter: brightness(1) drop-shadow(0 0 6px rgba(255,224,138,.8)); }
+}
+@keyframes evoRaysIn { to { opacity: 1; } }
+@keyframes evoRing { 0% { opacity: 1; transform: scale(.5); } 100% { opacity: 0; transform: scale(7); border-width: 1px; } }
+@keyframes evoSpark { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--r) * -1.6)) scale(.4); } }
+@keyframes evoTxt { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .evofx *, .evofx { animation-duration: .01ms !important; animation-delay: 0s !important; }
+  .evo-from { display: none; } .evo-to, .evo-txt { opacity: 1; }
+}

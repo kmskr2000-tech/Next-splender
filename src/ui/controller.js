@@ -247,7 +247,7 @@ export function createController({ cards, seed, humanName = 'ë‚˜', aiNames = ['í
       for (const ev of res.events) {
         if (ev.player !== this.human) continue;
         if (ev.type === 'buy') hooks.onCatch?.(ev.cardId, 'buy');
-        else if (ev.type === 'evolve') hooks.onCatch?.(ev.to, 'evolve');
+        else if (ev.type === 'evolve') { hooks.onCatch?.(ev.to, 'evolve'); hooks.onEvolve?.(ev.from, ev.to); }
       }
       if (this.finished) hooks.onEnd?.(this.game.ranking[0].player === this.human);
       hooks.onChange?.();

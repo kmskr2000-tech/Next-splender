@@ -326,6 +326,20 @@ export function aiToastHTML(ctrl) {
   return `<div class="aitoast"><span class="who">${p.isAI ? aiPrefix(ctrl) : ''}${esc(p.name)}</span><span class="what">${body}</span></div>`;
 }
 
+// 성장 성공 연출: 이전 인물이 빛에 휩싸였다가 다음 단계 인물로 터져 나온다 (CSS .evofx)
+export function evolveFxHTML(from, to) {
+  const sparks = Array.from({ length: 14 }, (_, i) => `<i style="--a:${(i * 360) / 14}deg;--r:${46 + (i % 3) * 14}px;--dl:${(i % 4) * 40}ms"></i>`).join('');
+  return `<div class="evofx" role="status" aria-live="polite">
+    <div class="evo-rays"></div><div class="evo-ring"></div>
+    <div class="evo-stage">
+      <img class="evo-from" src="${pokeSrc(from.id)}" alt="">
+      <img class="evo-to" src="${animSrc(to.id)}" onerror="this.onerror=null;this.src='${pokeSrc(to.id)}'" alt="${to.name}">
+      <div class="evo-sparks">${sparks}</div>
+    </div>
+    <div class="evo-txt"><small>${from.name}</small><b>${to.name}</b><span>성장!</span></div>
+  </div>`;
+}
+
 // ---------- sheet + overlays ----------
 
 function oppSheetHTML(p, ctrl) {

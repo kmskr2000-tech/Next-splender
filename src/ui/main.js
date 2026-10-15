@@ -291,7 +291,19 @@ function renderAchvToast() {
   if (a) achvToastTimer = setTimeout(() => { achvToasts = achvToasts.slice(1); renderAchvToast(); }, 3000);
 }
 
+let evoFxTimer = 0;
+function showEvolveFx(fromId, toId) {
+  const from = cardsById.get(fromId), to = cardsById.get(toId);
+  if (!from || !to) return;
+  document.querySelector('.evofx')?.remove();
+  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to));
+  const el = document.body.lastElementChild;
+  clearTimeout(evoFxTimer);
+  evoFxTimer = setTimeout(() => el.remove(), 2900);
+}
+
 const hooks = {
+  onEvolve: (fromId, toId) => showEvolveFx(fromId, toId),
   onCatch: (cardId, kind) => {
     recordCatch(storage, cardId, kind);
     const card = cardsById.get(cardId);
