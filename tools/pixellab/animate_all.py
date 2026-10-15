@@ -17,8 +17,8 @@ ONLY = set(sys.argv[2:])
 API = 'https://api.pixellab.ai/v2'
 KEEP = 'face and eyes stay exactly the same, same colors, no new objects'
 DESC = {
-    'person': f'idle loop: whole body bobs down one pixel and back up, hair, hat ornaments and clothes sway slightly, {KEEP}',
-    'creature': f'idle loop: gentle breathing, body bobs one pixel, tail, wings, whiskers or mane sway slightly, {KEEP}',
+    'person': f'idle loop: holding the same action pose, body breathes and bobs one pixel, hair, ribbons, sleeves and held item sway slightly, {KEEP}',
+    'creature': f'idle loop: holding the same pose, gentle breathing, tail, wings, whiskers, mane or flames sway slightly, {KEEP}',
     'object': 'idle loop: gentle one pixel floating bob with a soft shimmer of light, shape and colors stay exactly the same',
 }
 
