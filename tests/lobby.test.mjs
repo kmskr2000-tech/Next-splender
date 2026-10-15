@@ -103,6 +103,23 @@ await t('guest joins the lobby room and both see 2 players', async () => {
   assert.equal(r.playerCount, 2);
 });
 
+await t('chat: guest line is relayed by host to everyone with sender name', async () => {
+  assert.equal(guest.sendChat('  안녕하세요   <b>반가워요</b>  '), true);
+  for (let i = 0; i < 50 && (host.chatLog.length < 1 || guest.chatLog.length < 1); i++) await sleep(10);
+  assert.equal(host.chatLog.at(-1).name, '손님');
+  assert.equal(host.chatLog.at(-1).text, '안녕하세요 <b>반가워요</b>', 'trimmed; escaping is the UI job');
+  assert.equal(guest.chatLog.at(-1).text, host.chatLog.at(-1).text);
+  assert.equal(guest.chatLog.at(-1).from, 1);
+});
+await t('chat: host line reaches guest; 40-char cap; empty and rapid lines dropped', async () => {
+  assert.equal(host.sendChat('가'.repeat(60)), true);
+  assert.equal(host.sendChat('너무 빨리'), false, 'rate limited');
+  assert.equal(guest.sendChat('   '), false, 'empty');
+  for (let i = 0; i < 50 && guest.chatLog.length < 2; i++) await sleep(10);
+  assert.equal(guest.chatLog.at(-1).name, '방장');
+  assert.equal(guest.chatLog.at(-1).text.length, 40);
+});
+
 await t('same name in one room gets a number suffix', async () => {
   const g2 = new NetSession(cb());
   await g2.guestJoin('방장', host.shortCode);

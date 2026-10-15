@@ -727,3 +727,29 @@ button.orsv { cursor: pointer; width: 100%; text-align: left; font: inherit; }
   .evofx *, .evofx { animation-duration: .01ms !important; animation-delay: 0s !important; }
   .evo-from { display: none; } .evo-to, .evo-txt { opacity: 1; }
 }
+
+/* ===== 채팅 (친목전 방·온라인 대기실·온라인 게임) ===== */
+.chat { position: fixed; right: 12px; bottom: 20px; z-index: 8000; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.chat[hidden] { display: none; }
+.chat[data-mode="game"] { bottom: calc(var(--dockh, 140px) + 64px); }
+.chat > * { pointer-events: auto; }
+.chat-fab { position: relative; width: 48px; height: 48px; border-radius: 50%; background: var(--lacquer); color: #fff; font-size: 22px; box-shadow: var(--sh-2); }
+.chat-fab[hidden] { display: none; }
+.chat-badge { position: absolute; right: -3px; top: -3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--vermilion); color: #fff; font-style: normal; font-size: 11px; line-height: 18px; font-weight: 700; }
+.chat-badge[hidden] { display: none; }
+.chat-bubble { max-width: 240px; background: var(--card); color: var(--ink); border-radius: 14px 14px 4px 14px; padding: 7px 11px; font-size: 13px; line-height: 1.35; box-shadow: var(--sh-2); word-break: break-all; pointer-events: none; animation: toast 4s ease forwards; }
+.chat-bubble[hidden] { display: none; }
+.chat-bubble b { color: var(--jade-text); margin-right: 4px; }
+.chat-panel { width: min(340px, calc(100vw - 24px)); height: min(46vh, 380px); display: flex; flex-direction: column; background: var(--card); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); overflow: hidden; }
+.chat-panel[hidden] { display: none; }
+.chat-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--lacquer); color: var(--on-lacquer); font-size: 14px; }
+.chat-close { color: var(--on-lacquer); font-size: 16px; padding: 2px 6px; }
+.chat-list { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.chat-line { align-self: flex-start; max-width: 85%; background: var(--paper-2); border-radius: 12px 12px 12px 4px; padding: 6px 10px; font-size: 13px; line-height: 1.35; word-break: break-all; }
+.chat-line b { display: block; font-size: 11px; color: var(--ink-2); margin-bottom: 1px; }
+.chat-line.me { align-self: flex-end; background: #E4F1EC; border-radius: 12px 12px 4px 12px; }
+.chat-line.me b { display: none; }
+.chat-empty { margin: auto; font-size: 12px; color: var(--ink-2); text-align: center; }
+.chat-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
+.chat-in { flex: 1; min-width: 0; font-size: 16px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font-family: inherit; }
+.chat-send { flex: none; padding: 0 14px; border-radius: 10px; background: var(--vermilion); color: #fff; font-size: 14px; font-weight: 700; }

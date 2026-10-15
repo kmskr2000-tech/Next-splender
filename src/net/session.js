@@ -9,6 +9,8 @@ import { MSG, makeMsg, stateHash } from './protocol.js?v=1792040398';
 
 const MAX_PLAYERS = 4;
 const DEFAULT_TURN_LIMIT_MS = 25 * 1000; // 25 seconds per turn
+const CHAT_MAX = 40; // 채팅 한 줄 최대 글자
+const CHAT_KEEP = 50; // 보관할 최근 채팅 줄 수
 
 export class NetSession {
   // cb: { onRender(), onGameStart(ctrl), onGameEnd(), onNotice(msg) }
@@ -38,6 +40,9 @@ export class NetSession {
     this.peerToPlayer = {}; // host: peerIdx -> playerIndex
     this.aiTakeover = {}; // host: playerIndex -> true (disconnected seat now driven by AI)
     this._promoting = false; // guest: promotion in progress
+    this.chatLog = []; // [{from, name, text, at}]
+    this._chatRate = {}; // host: playerIndex -> recent send times
+    this._lastChat = 0;
     this._waitingForHost = 0; // guest: timestamp until which we wait for a new host
     this.aiCount = 0; // host lobby: AI seats to add (0..4-humanCount)
     this.aiNames = [];
@@ -60,6 +65,41 @@ export class NetSession {
   }
   clearRejoin() {
     try { localStorage.removeItem('ohsp-rejoin'); } catch {}
+  }
+
+  // ---------- chat (host relays; everyone appends only the relayed copy so order matches) ----------
+  static cleanChat(t) {
+    return String(t ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+  }
+  /** Send a chat line. Returns false when empty / too fast / not connected. */
+  sendChat(text) {
+    const t = NetSession.cleanChat(text);
+    if (!t || !this.room) return false;
+    const now = Date.now();
+    if (now - (this._lastChat || 0) < 800) return false; // 연타 방지
+    this._lastChat = now;
+    if (this.role === 'host') this.relayChat(this.myIndex >= 0 ? this.myIndex : 0, t);
+    else this.room.send(makeMsg(MSG.CHAT, { text: t }));
+    return true;
+  }
+  /** Host: accept a line from player `from` (rate-limited per player) and relay it to all. */
+  relayChat(from, text) {
+    const t = NetSession.cleanChat(text);
+    if (!t || from == null || from < 0) return;
+    const now = Date.now();
+    const hist = (this._chatRate[from] = (this._chatRate[from] || []).filter((x) => now - x < 10000));
+    if (hist.length >= 6) return; // 10초에 6줄까지
+    hist.push(now);
+    const msg = { from, name: this.names[from] || '?', text: t, at: now };
+    this.room.broadcast(makeMsg(MSG.CHAT, msg));
+    this.pushChat(msg);
+  }
+  pushChat(m) {
+    const msg = { from: Number(m.from), name: String(m.name || '?').slice(0, 14), text: NetSession.cleanChat(m.text), at: Number(m.at) || Date.now() };
+    if (!msg.text) return;
+    this.chatLog.push(msg);
+    if (this.chatLog.length > CHAT_KEEP) this.chatLog.splice(0, this.chatLog.length - CHAT_KEEP);
+    this.cb.onChat?.(msg);
   }
 
   cleanName(n) {
@@ -197,6 +237,9 @@ export class NetSession {
 
   hostMsg(peerIdx, m) {
     switch (m.t) {
+      case MSG.CHAT:
+        this.relayChat(this.peerToPlayer[peerIdx], m.text);
+        break;
       case MSG.HELLO: {
         // Rejoin mid-game? Hand the AI-driven seat back to the returning human.
         if (this.phase === 'playing') {
@@ -317,6 +360,9 @@ export class NetSession {
 
   guestMsg(m) {
     switch (m.t) {
+      case MSG.CHAT:
+        this.pushChat(m);
+        break;
       case MSG.WELCOME:
         this.myIndex = m.playerIndex;
         if (this.usePeer && this.lastCode) this.saveRejoin(this.lastCode, m.playerIndex);

@@ -45,6 +45,7 @@ import { CARDS } from '../data/cards.js?v=1792040398';
 import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792040398';
 import { createController, TRAINERS } from './controller.js?v=1792040398';
 import * as V from './view.js?v=1792040398';
+import { createChatWidget } from './chat.js?v=1792040398';
 import { NetSession } from '../net/session.js?v=1792040398';
 import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792040398';
 import { getPoints, bonusList } from '../core/engine.js?v=1792040398';
@@ -112,6 +113,13 @@ V.setMyAvatar(options.avatar);
 V.setMyCosmetics(loadInventory(storage).equipped);
 
 const $ = (id) => document.getElementById(id);
+// 채팅: 친목전 방·온라인 대기실·온라인 게임에서만 보인다
+const chat = createChatWidget($('chat'), { send: (t) => !!net?.sendChat(t) });
+function renderChat() {
+  const live = !!net && ['hostlobby', 'guestlobby', 'playing'].includes(net.phase);
+  document.getElementById('chat').dataset.mode = ctrl ? 'game' : 'lobby';
+  chat.update({ visible: live, log: net?.chatLog || [], myIndex: net?.myIndex ?? -1 });
+}
 const myName = () => options.playerName || '도사';
 firstRun = !options.playerName;
 const onlineAvailable = () => !FORCE_SIM && typeof window.firebase !== 'undefined';
@@ -199,6 +207,7 @@ function render() {
   else if (optionsOpen) overlay = V.optionsHTML(options, !!ctrl && !ctrl.finished);
   // Don't clobber a half-typed input on the home/join screens with an identical re-render.
   setHTML('overlay', overlay);
+  renderChat();
   scheduleAI();
 }
 
@@ -571,6 +580,7 @@ function openNet() {
     onRender: () => render(),
     onGameStart: (c) => enterGame(c),
     onEvolve: (fromId, toId, player) => showEvolveFx(fromId, toId, player),
+    onChat: () => { renderChat(); if (!chat.isOpen()) sfx.chat(); },
     onGameEnd: () => { net = null; ctrl = null; queue = null; render(); },
     onNotice: (msg) => { netNotice = msg; if (queue) queue.notice = msg; render(); },
   });
@@ -826,5 +836,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.__render = render; // automated tests
+window.__chat = chat; // automated tests (screenshots without a server)
 render();
 registerExistingName();

@@ -13,6 +13,7 @@ export const MSG = {
   PING: 'ping',        // both ways {t}
   PONG: 'pong',        // both ways {t}
   BYE: 'bye',          // both ways {}
+  CHAT: 'chat',        // G->H {text} | H->G {from, name, text, at} (host relays to everyone)
 };
 
 export function makeMsg(t, body = {}) {

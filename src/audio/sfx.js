@@ -52,6 +52,7 @@ const F = {
 
 export const sfx = {
   // UI click
+  chat() { seq([[F.E5, 0.05], [F.A5, 0.07]], 'sine', 0.05, 0.4); },
   click() { seq([[F.C5, 0.05]], 'square', 0.06, 0.5); },
   // Take balls
   takeBall() { seq([[F.E4, 0.06], [F.G4, 0.08]], 'square', 0.07, 0.7); },
