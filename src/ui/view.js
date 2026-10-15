@@ -1,17 +1,17 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792039444';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792039444';
-import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792039444';
-import { dexSummary } from '../storage/store.js?v=1792039444';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792039444';
-import { ROSTER, LINES } from '../data/roster.js?v=1792039444';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792039444';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792039444';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792039444';
-import { displayOf } from '../meta/rating.js?v=1792039444';
-import { SPRITE_BOX } from './spritebox.js?v=1792039444';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792039978';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792039978';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792039978';
+import { dexSummary } from '../storage/store.js?v=1792039978';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792039978';
+import { ROSTER, LINES } from '../data/roster.js?v=1792039978';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792039978';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792039978';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792039978';
+import { displayOf } from '../meta/rating.js?v=1792039978';
+import { SPRITE_BOX } from './spritebox.js?v=1792039978';
 
 
 const ASSET = 'assets';
@@ -505,11 +505,32 @@ function beginnerTip(ctrl) {
   return '21점이 목표! 보물을 모아 인물을 영입하세요. 보너스가 쌓이면 할인이 커져요.';
 }
 
+// 초보 팁은 같은 문구를 기기당 한 번만 보여 준다 (오류 안내는 매번). 설정에서 도움말을 다시 켜면 처음부터.
+const TIP_KEY = 'ohsp-tips-seen';
+let tipsSeen = null, lastTip = '';
+function loadTipsSeen() {
+  if (tipsSeen) return tipsSeen;
+  try { tipsSeen = new Set(JSON.parse(globalThis.localStorage?.getItem(TIP_KEY) || '[]')); } catch { tipsSeen = new Set(); }
+  return tipsSeen;
+}
+export function resetTips() {
+  tipsSeen = new Set(); lastTip = '';
+  try { globalThis.localStorage?.removeItem(TIP_KEY); } catch { /* storage blocked: in-memory only */ }
+}
+const toastHTML = (msg) => `<div class="toast" onclick="this.remove()" role="status"><span class="helptag">TIP</span><span>${msg}</span></div>`;
+
 export function helpHTML(ctrl, options) {
   if (!ctrl || ctrl.finished) return '';
-  const msg = ctrl.isHumanTurn && ctrl.message ? ctrl.message : (options.beginnerHelp ? beginnerTip(ctrl) : '');
-  if (!msg) return '';
-  return `<div class="toast" onclick="this.remove()" role="status"><span class="helptag">TIP</span><span>${msg}</span></div>`;
+  if (ctrl.isHumanTurn && ctrl.message) return toastHTML(ctrl.message);
+  const tip = options.beginnerHelp ? beginnerTip(ctrl) : '';
+  if (!tip) { lastTip = ''; return ''; }
+  if (tip === lastTip) return toastHTML(tip); // 같은 화면에서 다시 그려질 때는 그대로 둔다(사라지는 중인 토스트 유지)
+  lastTip = '';
+  const seen = loadTipsSeen();
+  if (seen.has(tip)) return '';
+  seen.add(tip); lastTip = tip;
+  try { globalThis.localStorage?.setItem(TIP_KEY, JSON.stringify([...seen])); } catch { /* storage blocked */ }
+  return toastHTML(tip);
 }
 
 export function dexHTML(dex, cards) {
