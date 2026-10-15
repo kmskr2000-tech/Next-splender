@@ -46,7 +46,7 @@ import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=17920
 import { createController, TRAINERS } from './controller.js?v=1792040398';
 import * as V from './view.js?v=1792040398';
 import { NetSession } from '../net/session.js?v=1792040398';
-import { listRooms, watchRooms } from '../net/fireroom.js?v=1792040398';
+import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792040398';
 import { getPoints, bonusList } from '../core/engine.js?v=1792040398';
 import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792040398';
 import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792040398';
@@ -186,11 +186,12 @@ function render() {
     overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby });
     netNotice = '';
   }
-  if (firstRun && !ctrl && !queue) overlay = V.profileHTML(options, { first: true, error: profileError });
+  const prof = { error: profileError, name: pendingName ?? options.playerName, avatar: pendingAvatar || options.avatar, busy: profileBusy };
+  if (firstRun && !ctrl && !queue) overlay = V.profileHTML(options, { ...prof, first: true });
   else if (dexOpen) overlay = V.dexHTML(loadDex(storage), CARDS);
   else if (rulesOpen) overlay = V.rulesHTML();
   else if (achvOpen) overlay = V.achvHTML(loadAchv(storage).unlocked);
-  else if (profileOpen) overlay = V.profileHTML(options, { error: profileError });
+  else if (profileOpen) overlay = V.profileHTML(options, prof);
   else if (lobbyCreate) overlay = V.lobbyCreateHTML({ name: myName(), size: options.queueSize, error: lobbyCreate.error });
   else if (lobbyPw) overlay = V.lobbyPwHTML({ room: lobby.rooms.find((r) => r.code === lobbyPw.code), error: lobbyPw.error });
   else if (shopOpen) overlay = V.shopHTML({ inv: loadInventory(storage), tab: shopTab, toast: shopToast });
@@ -636,6 +637,44 @@ function saveProfile(name, avatar) {
 }
 
 let pendingAvatar = null;
+let pendingName = null; // 프로필 창에서 입력 중인 닉네임 (다시 그려도 유지)
+let profileBusy = false;
+
+// 기기 id: 닉네임 등록부의 주인 표시 (로그인 없이 기기 단위로 구분)
+function deviceId() {
+  try {
+    let id = localStorage.getItem('ohsp-device');
+    if (!id) { id = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem('ohsp-device', id); }
+    return id;
+  } catch { return 'nodevice'; }
+}
+// 'ok' | 'taken' | 'offline' (서버 확인 불가 시에는 막지 않는다)
+async function checkName(name, prev) {
+  if (FORCE_SIM || !onlineAvailable()) return 'offline';
+  try { return await claimName(name, deviceId(), prev); } catch { return 'offline'; }
+}
+async function handleProfileSave() {
+  if (profileBusy) return;
+  const typed = String($('profname')?.value ?? pendingName ?? '').trim().slice(0, 12);
+  pendingName = typed;
+  if (firstRun && !typed) { profileError = '닉네임을 입력해 주세요.'; render(); return; }
+  const prev = options.playerName;
+  if (typed && typed !== prev) {
+    profileBusy = true; profileError = '닉네임 확인 중…'; render();
+    const r = await checkName(typed, prev);
+    profileBusy = false;
+    if (r === 'taken') { profileError = '이미 다른 도사가 쓰는 닉네임이에요. 다른 이름을 골라 주세요.'; render(); return; }
+  }
+  saveProfile(typed, pendingAvatar || options.avatar);
+  profileOpen = false; firstRun = false; profileError = ''; pendingName = null;
+  render();
+}
+// 예전부터 쓰던 닉네임도 등록부에 올려 둔다. 다른 기기가 먼저 등록했으면 바꾸도록 안내.
+async function registerExistingName() {
+  if (!options.playerName) return;
+  const r = await checkName(options.playerName, '');
+  if (r === 'taken' && !ctrl) { profileOpen = true; pendingAvatar = options.avatar; pendingName = options.playerName; profileError = '다른 도사가 먼저 등록한 닉네임이에요. 새 닉네임을 정해 주세요.'; render(); }
+}
 
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
@@ -710,15 +749,9 @@ document.addEventListener('click', (e) => {
     case 'lobby-pw-close': lobbyPw = null; break;
     case 'lobby-pw-go': if (lobbyPw) joinLobbyRoom(lobbyPw.code, String($('lobbypwin')?.value ?? '')); return;
     case 'room-start': if (net && queue) startNetGame(queue, options.fillBots ? Math.max(0, queue.size - net.names.length) : 0); return;
-    case 'profile': profileOpen = true; pendingAvatar = options.avatar; break;
-    case 'avatar': pendingAvatar = d.name; saveProfile($('profname')?.value ?? options.playerName, d.name); break;
-    case 'profile-save': {
-      const typed = String($('profname')?.value ?? '').trim();
-      if (firstRun && !typed) { profileError = '닉네임을 입력해 주세요.'; break; }
-      saveProfile(typed, pendingAvatar || options.avatar);
-      profileOpen = false; firstRun = false; profileError = '';
-      break;
-    }
+    case 'profile': profileOpen = true; pendingAvatar = options.avatar; pendingName = null; profileError = ''; break;
+    case 'avatar': pendingName = $('profname')?.value ?? pendingName; pendingAvatar = d.name; break;
+    case 'profile-save': handleProfileSave(); return;
     case 'rematch':
       curMatch = null;
       dropNet(); ctrl = null; optionsOpen = false; clearTimeout(aiTimer); aiTimer = null;
@@ -794,3 +827,4 @@ document.addEventListener('keydown', (e) => {
 
 window.__render = render; // automated tests
 render();
+registerExistingName();

@@ -1,7 +1,7 @@
 // node tests/lobby.test.mjs -- 친목전 로비: 방 메타(kind/size/pwHash) 저장·목록 노출, 게스트 입장, 매칭 방과 구분
 // Firebase 대신 메모리 RTDB 목(아래 MockDb)으로 FirebaseRoom + NetSession 흐름을 돌린다.
 import assert from 'node:assert/strict';
-import { __setMockDb, listRooms } from '../src/net/fireroom.js?v=1792040398';
+import { __setMockDb, listRooms, claimName, nameKey } from '../src/net/fireroom.js?v=1792040398';
 import { NetSession } from '../src/net/session.js?v=1792040398';
 
 // ---- tiny in-memory RTDB (only what fireroom.js uses) ----
@@ -101,6 +101,30 @@ await t('guest joins the lobby room and both see 2 players', async () => {
   assert.equal(guest.phase, 'guestlobby');
   const r = (await listRooms()).find((x) => x.code === host.shortCode);
   assert.equal(r.playerCount, 2);
+});
+
+await t('same name in one room gets a number suffix', async () => {
+  const g2 = new NetSession(cb());
+  await g2.guestJoin('방장', host.shortCode);
+  for (let i = 0; i < 50 && host.names.length < 3; i++) await sleep(10);
+  assert.deepEqual(host.names, ['방장', '손님', '방장2']);
+  g2.end();
+});
+
+await t('nickname: first claim ok, other device taken (case-insensitive)', async () => {
+  assert.equal(await claimName('도사', 'devA'), 'ok');
+  assert.equal(await claimName('도사', 'devB'), 'taken');
+  assert.equal(await claimName('Tiger', 'devA'), 'ok');
+  assert.equal(await claimName(' tiger ', 'devB'), 'taken');
+  assert.equal(await claimName('도사', 'devA'), 'ok', 'same device can re-claim');
+});
+await t('nickname: rename releases the old name', async () => {
+  assert.equal(await claimName('홍길동', 'devA', '도사'), 'ok');
+  assert.equal(db.get(`ohsp-names/${nameKey('도사')}`).released, true);
+  assert.equal(await claimName('도사', 'devB'), 'ok', 'released name is free');
+});
+await t('nickname key is RTDB-safe', () => {
+  assert.ok(!/[.$#\[\]/]/.test(nameKey('a.b$c#d[e]/f')));
 });
 
 host.end(); guest.end();

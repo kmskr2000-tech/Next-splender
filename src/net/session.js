@@ -225,7 +225,10 @@ export class NetSession {
         if (this.names.length >= MAX_PLAYERS) return;
         if (this.peerToPlayer[peerIdx] != null) return; // already joined
         const idx = this.names.length;
-        this.names.push(this.cleanName(m.name));
+        // 같은 방에 같은 이름이 있으면 뒤에 번호를 붙인다 (예: 도사 → 도사2)
+        let nm = this.cleanName(m.name);
+        for (let n = 2; this.names.includes(nm); n++) nm = `${this.cleanName(m.name).slice(0, 11)}${n}`;
+        this.names.push(nm);
         this.peerToPlayer[peerIdx] = idx;
         if (this.room && typeof this.room.setGuestPlayerIndex === 'function') {
           this.room.setGuestPlayerIndex(peerIdx, idx);

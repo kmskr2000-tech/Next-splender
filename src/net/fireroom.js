@@ -65,6 +65,28 @@ function getDb() {
   return _db;
 }
 
+// ---------- 닉네임 등록부 (중복 방지) ----------
+// ohsp-names/{key}: { id: deviceId, name, at } — 기기 id가 주인. 이름을 바꾸면 옛 이름은 released:true 로 풀어 준다.
+// Firebase 규칙에 ohsp-names 블록이 필요하다 (assets/firebase-config.js 주석 참고).
+const NAMES_PATH = 'ohsp-names';
+/** Pure: RTDB-safe key for a nickname (case-insensitive, trimmed). */
+export function nameKey(name) {
+  return encodeURIComponent(String(name || '').trim().toLowerCase()).replace(/\./g, '%2E');
+}
+/** Claim `name` for this device. Resolves 'ok' | 'taken'; throws on network/permission errors. */
+export async function claimName(name, deviceId, prevName = '') {
+  const db = getDb();
+  const key = nameKey(name);
+  if (!key) return 'taken';
+  const res = await db.ref(`${NAMES_PATH}/${key}`).transaction((cur) =>
+    (!cur || cur.released || cur.id === deviceId) ? { id: deviceId, name: String(name).trim(), at: Date.now() } : undefined);
+  if (!res || !res.committed) return 'taken';
+  if (prevName && nameKey(prevName) !== key) {
+    db.ref(`${NAMES_PATH}/${nameKey(prevName)}`).set({ id: deviceId, released: true, at: Date.now() }).catch(() => {});
+  }
+  return 'ok';
+}
+
 /** List available rooms for the lobby. Returns [{code, title, hostName, playerCount, created}]. */
 export async function listRooms() {
   const db = getDb();
