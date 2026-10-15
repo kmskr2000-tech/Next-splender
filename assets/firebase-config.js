@@ -1,20 +1,17 @@
-// Firebase config for multiplayer (poke-splender-c253e project, shared with the original game).
-// NOTE: this game uses DB path "ohsp-rooms" (not "pkmspl-rooms"). The Realtime Database rules MUST allow it
-// (add this block next to the existing pkmspl-rooms one, or use a new Firebase project):
-//     "ohsp-rooms": { ".read": true, "$code": { ".write": true } }
-// Realtime Database rules (original):
+// Firebase config for multiplayer (dedicated "next-splender" project, separate from the original game).
+// DB path: "ohsp-rooms". Realtime Database rules:
 //   {
 //     "rules": {
-//       "pkmspl-rooms": {
+//       "ohsp-rooms": {
 //         ".read": true,
-//         "$code": { ".write": true }
+//         "$code": { ".write": true, ".validate": "$code.matches(/^[A-HJKMNP-Z2-9]{6}$/)" }
 //       }
 //     }
 //   }
 window.__FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDPJX9jSvahojG_5LrkQuG-v11IytKbd7E",
-  authDomain: "poke-splender-c253e.firebaseapp.com",
-  databaseURL: "https://poke-splender-c253e-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "poke-splender-c253e",
-  appId: "1:169815564667:web:db0cf7f1bce27eccef5dde",
+  apiKey: "AIzaSyDcldz4LmkM1XGID9zLDsOk_PHQGWwwPSg",
+  authDomain: "next-splender.firebaseapp.com",
+  databaseURL: "https://next-splender-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "next-splender",
+  appId: "1:1087721820665:web:be847a7a7c87ff5c75ed28",
 };
