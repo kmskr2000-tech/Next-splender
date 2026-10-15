@@ -1,14 +1,16 @@
 // Multiplayer session: owns the NetRoom, the lockstep protocol flow, and the
 // multiplayer controller. main.js only renders `session` state and forwards taps.
 
-import { CARDS } from '../data/cards.js?v=1792040398';
-import { createController } from '../ui/controller.js?v=1792040398';
-import { NetRoom } from './webrtc.js?v=1792040398';
-import { FirebaseRoom } from './fireroom.js?v=1792040398';
-import { MSG, makeMsg, stateHash } from './protocol.js?v=1792040398';
+import { CARDS } from '../data/cards.js?v=1792047695';
+import { createController } from '../ui/controller.js?v=1792047695';
+import { NetRoom } from './webrtc.js?v=1792047695';
+import { FirebaseRoom } from './fireroom.js?v=1792047695';
+import { MSG, makeMsg, stateHash } from './protocol.js?v=1792047695';
 
 const MAX_PLAYERS = 4;
-const DEFAULT_TURN_LIMIT_MS = 45 * 1000; // 45 seconds per turn
+const DEFAULT_TURN_LIMIT_MS = 25 * 1000; // 25 seconds per turn
+const CHAT_MAX = 40; // 채팅 한 줄 최대 글자
+const CHAT_KEEP = 50; // 보관할 최근 채팅 줄 수
 
 export class NetSession {
   // cb: { onRender(), onGameStart(ctrl), onGameEnd(), onNotice(msg) }
@@ -38,6 +40,10 @@ export class NetSession {
     this.peerToPlayer = {}; // host: peerIdx -> playerIndex
     this.aiTakeover = {}; // host: playerIndex -> true (disconnected seat now driven by AI)
     this._promoting = false; // guest: promotion in progress
+    this.chatLog = []; // [{from, name, text, at}]
+    this.looks = []; // 좌석별 꾸민 모습 코드 (names와 같은 순서)
+    this._chatRate = {}; // host: playerIndex -> recent send times
+    this._lastChat = 0;
     this._waitingForHost = 0; // guest: timestamp until which we wait for a new host
     this.aiCount = 0; // host lobby: AI seats to add (0..4-humanCount)
     this.aiNames = [];
@@ -62,6 +68,41 @@ export class NetSession {
     try { localStorage.removeItem('ohsp-rejoin'); } catch {}
   }
 
+  // ---------- chat (host relays; everyone appends only the relayed copy so order matches) ----------
+  static cleanChat(t) {
+    return String(t ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+  }
+  /** Send a chat line. Returns false when empty / too fast / not connected. */
+  sendChat(text) {
+    const t = NetSession.cleanChat(text);
+    if (!t || !this.room) return false;
+    const now = Date.now();
+    if (now - (this._lastChat || 0) < 800) return false; // 연타 방지
+    this._lastChat = now;
+    if (this.role === 'host') this.relayChat(this.myIndex >= 0 ? this.myIndex : 0, t);
+    else this.room.send(makeMsg(MSG.CHAT, { text: t }));
+    return true;
+  }
+  /** Host: accept a line from player `from` (rate-limited per player) and relay it to all. */
+  relayChat(from, text) {
+    const t = NetSession.cleanChat(text);
+    if (!t || from == null || from < 0) return;
+    const now = Date.now();
+    const hist = (this._chatRate[from] = (this._chatRate[from] || []).filter((x) => now - x < 10000));
+    if (hist.length >= 6) return; // 10초에 6줄까지
+    hist.push(now);
+    const msg = { from, name: this.names[from] || '?', text: t, at: now };
+    this.room.broadcast(makeMsg(MSG.CHAT, msg));
+    this.pushChat(msg);
+  }
+  pushChat(m) {
+    const msg = { from: Number(m.from), name: String(m.name || '?').slice(0, 14), text: NetSession.cleanChat(m.text), at: Number(m.at) || Date.now() };
+    if (!msg.text) return;
+    this.chatLog.push(msg);
+    if (this.chatLog.length > CHAT_KEEP) this.chatLog.splice(0, this.chatLog.length - CHAT_KEEP);
+    this.cb.onChat?.(msg);
+  }
+
   cleanName(n) {
     return String(n || '').trim().slice(0, 12) || '도사';
   }
@@ -73,7 +114,7 @@ export class NetSession {
         // Guest: connection open -> introduce ourselves; host replies with welcome+roster.
         // Include rejoin seat if we have one for this room code.
         if (this.role === 'guest' && this.room) {
-          const hello = { name: this.myName };
+          const hello = { name: this.myName, look: this.myLook || '' };
           const rj = this.usePeer && this.lastCode ? this.loadRejoin(this.lastCode) : null;
           if (rj) hello.rejoin = rj.playerIndex;
           this.room.send(makeMsg(MSG.HELLO, hello));
@@ -86,7 +127,7 @@ export class NetSession {
         // Guest socket dropped and came back after the host already saw us leave:
         // re-send HELLO with our saved seat so the host hands it back from AI.
         if (this.role === 'guest' && this.room && this.phase === 'playing') {
-          const hello = { name: this.myName };
+          const hello = { name: this.myName, look: this.myLook || '' };
           const rj = this.usePeer && this.lastCode ? this.loadRejoin(this.lastCode) : null;
           if (rj) hello.rejoin = rj.playerIndex;
           this.room.send(makeMsg(MSG.HELLO, hello));
@@ -101,11 +142,12 @@ export class NetSession {
 
   // ---------- host ----------
 
-  async hostCreate(name, title = '', turnLimitMs = DEFAULT_TURN_LIMIT_MS) {
+  async hostCreate(name, title = '', turnLimitMs = DEFAULT_TURN_LIMIT_MS, meta = {}) {
     this.role = 'host';
     this.myName = this.cleanName(name);
     this.turnLimitMs = turnLimitMs;
     this.names = [this.myName];
+    this.looks = [this.myLook || ''];
     this.myIndex = 0;
     this.room = this.makeRoom();
     // Guest connections arrive via onMsg(hello) in both transports.
@@ -114,7 +156,7 @@ export class NetSession {
     this.cb.onRender();
     try {
       if (this.usePeer) {
-        this.shortCode = await this.room.hostCreate(this.myName, title, this.turnLimitMs);
+        this.shortCode = await this.room.hostCreate(this.myName, title, this.turnLimitMs, meta);
         this.phase = 'hostlobby';
       } else {
         const { peerIdx, code } = await this.room.createOffer();
@@ -169,6 +211,7 @@ export class NetSession {
   broadcastRoster() {
     this.room.broadcast(makeMsg(MSG.ROSTER, {
       names: this.names,
+      looks: this.looks,
       aiTakeover: Object.keys(this.aiTakeover).map(Number),
     }));
   }
@@ -187,7 +230,7 @@ export class NetSession {
     const seed = (crypto.getRandomValues(new Uint32Array(1))[0] || 1);
     this.aiNames = this.pickAiNames();
     this.beginGame(seed, [...this.names], 0, this.aiNames);
-    this.room.broadcast(makeMsg(MSG.START, { seed, names: this.names, aiNames: this.aiNames, turnLimitMs: this.turnLimitMs }));
+    this.room.broadcast(makeMsg(MSG.START, { seed, names: this.names, looks: this.looks, aiNames: this.aiNames, turnLimitMs: this.turnLimitMs }));
     // Mark room as started so it disappears from lobby. Also write start info
     // as a fallback in case the broadcast message is missed.
     if (this.room && typeof this.room.markStarted === 'function') {
@@ -197,6 +240,9 @@ export class NetSession {
 
   hostMsg(peerIdx, m) {
     switch (m.t) {
+      case MSG.CHAT:
+        this.relayChat(this.peerToPlayer[peerIdx], m.text);
+        break;
       case MSG.HELLO: {
         // Rejoin mid-game? Hand the AI-driven seat back to the returning human.
         if (this.phase === 'playing') {
@@ -225,7 +271,11 @@ export class NetSession {
         if (this.names.length >= MAX_PLAYERS) return;
         if (this.peerToPlayer[peerIdx] != null) return; // already joined
         const idx = this.names.length;
-        this.names.push(this.cleanName(m.name));
+        // 같은 방에 같은 이름이 있으면 뒤에 번호를 붙인다 (예: 도사 → 도사2)
+        let nm = this.cleanName(m.name);
+        for (let n = 2; this.names.includes(nm); n++) nm = `${this.cleanName(m.name).slice(0, 11)}${n}`;
+        this.names.push(nm);
+        this.looks[idx] = String(m.look || '').slice(0, 40); // 꾸민 모습 코드 (표시만, 게임 규칙과 무관)
         this.peerToPlayer[peerIdx] = idx;
         if (this.room && typeof this.room.setGuestPlayerIndex === 'function') {
           this.room.setGuestPlayerIndex(peerIdx, idx);
@@ -314,6 +364,9 @@ export class NetSession {
 
   guestMsg(m) {
     switch (m.t) {
+      case MSG.CHAT:
+        this.pushChat(m);
+        break;
       case MSG.WELCOME:
         this.myIndex = m.playerIndex;
         if (this.usePeer && this.lastCode) this.saveRejoin(this.lastCode, m.playerIndex);
@@ -337,6 +390,7 @@ export class NetSession {
         break;
       case MSG.ROSTER:
         this.names = m.names;
+        if (Array.isArray(m.looks)) this.looks = m.looks.map((x) => String(x || '').slice(0, 40));
         // Sync AI-takeover seats (host converts disconnected seats to AI).
         if (this.ctrl && Array.isArray(m.aiTakeover)) {
           const take = new Set(m.aiTakeover);
@@ -352,6 +406,7 @@ export class NetSession {
         break;
       case MSG.START:
         if (m.turnLimitMs) this.turnLimitMs = m.turnLimitMs;
+        if (Array.isArray(m.looks)) this.looks = m.looks.map((x) => String(x || '').slice(0, 40));
         this.beginGame(m.seed, m.names, this.myIndex, m.aiNames || []);
         break;
       case MSG.ACTION: {
@@ -389,7 +444,8 @@ export class NetSession {
     // hooks are empty — no dex/save/achievement recording in multiplayer (v1).
     // AI seats (if any) are acted by the host; their actions are relayed like any other.
     // Multiplayer AI is fixed to hard difficulty.
-    const ctrl = createController({ cards: CARDS, seed, mp: { names, me: myIndex, aiNames }, hooks: {}, difficulty: 'hard' });
+    // onEvolve only drives the shared evolve effect (UI), not persistence.
+    const ctrl = createController({ cards: CARDS, seed, mp: { names, me: myIndex, aiNames }, hooks: { onEvolve: (...a) => this.cb.onEvolve?.(...a) }, difficulty: 'hard' });
     const raw = ctrl.dispatch.bind(ctrl);
     const self = this;
     // Expose turn timer to UI via mp object.
@@ -419,7 +475,7 @@ export class NetSession {
     this.cb.onGameStart(ctrl);
   }
 
-  /** Reset the 90s turn timer. Called on game start and after each action. */
+  /** Reset the turn timer. Called on game start and after each action. */
   resetTurnTimer() {
     this.turnDeadline = Date.now() + this.turnLimitMs;
   }
@@ -457,7 +513,7 @@ export class NetSession {
         }
         this.resetTurnTimer();
       }
-    }, 1000);
+    }, 250); // 시간이 다 되면 바로 넘어가도록 촘촘히 확인
     // Don't keep Node.js process alive in tests.
     if (this._turnTimer.unref) this._turnTimer.unref();
   }

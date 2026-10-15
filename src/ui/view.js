@@ -1,17 +1,18 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792040398';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792040398';
-import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792040398';
-import { dexSummary } from '../storage/store.js?v=1792040398';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792040398';
-import { ROSTER, LINES } from '../data/roster.js?v=1792040398';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792040398';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792040398';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792040398';
-import { displayOf } from '../meta/rating.js?v=1792040398';
-import { SPRITE_BOX } from './spritebox.js?v=1792040398';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792047695';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792047695';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792047695';
+import { dexSummary } from '../storage/store.js?v=1792047695';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792047695';
+import { ROSTER, LINES } from '../data/roster.js?v=1792047695';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792047695';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792047695';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792047695';
+import { displayOf } from '../meta/rating.js?v=1792047695';
+import { SPRITE_BOX } from './spritebox.js?v=1792047695';
+import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792047695';
 
 
 const ASSET = 'assets';
@@ -144,11 +145,18 @@ export function boardHTML(ctrl) {
 const SEAT_COLORS = ['var(--obang-red)', 'var(--obang-blue)', 'var(--obang-yellow)', 'var(--obang-green)'];
 let myAvatar = '하늘';
 export const setMyAvatar = (name) => { myAvatar = name; };
+// 꾸민 캐릭터: 나(myLook)와 온라인 상대(seatLooks[좌석])는 파츠 아바타, AI는 기존 초상화
+let myLook = null;
+let seatLooks = null;
+export const setMyLook = (look) => { myLook = look ? sanitizeLook(look) : null; };
+export const setSeatLooks = (arr) => { seatLooks = Array.isArray(arr) ? arr : null; };
 
 /** Round avatar: trainer portrait when known, else a colored initial. */
 export function avatarHTML(name, seat = 0, { me = false, cls = '' } = {}) {
-  const face = trainerFaceSrc(me ? myAvatar : name) || trainerFaceSrc(name);
   const fr = me ? myFrame() : '';
+  const look = me ? myLook : seatLooks?.[seat];
+  if (look) return lookHTML(look, `${cls} ${fr}`);
+  const face = trainerFaceSrc(me ? myAvatar : name) || trainerFaceSrc(name);
   if (face) return `<img class="av ${cls} ${fr}" src="${face}" alt="">`;
   const ch = esc([...String(name || '?')][0] || '?');
   return `<span class="av ini ${cls} ${fr}" style="background:${SEAT_COLORS[seat % 4]}">${ch}</span>`;
@@ -163,7 +171,7 @@ const aiPrefix = (ctrl) => (ctrl.simUsers ? '시뮬 ' : 'BOT ');
 // ---------- top bar (round + turn timer) / side rail ----------
 
 // timer: { remaining, limit } seconds
-export function headerHTML(ctrl, timer = { remaining: 0, limit: 45 }) {
+export function headerHTML(ctrl, timer = { remaining: 0, limit: 25 }) {
   const s = ctrl.state;
   const round = Math.floor(s.turn / s.players.length) + 1;
   const cur = ctrl.current;
@@ -172,7 +180,7 @@ export function headerHTML(ctrl, timer = { remaining: 0, limit: 45 }) {
   else mid = `${avatarHTML(cur.name, cur.id, { me: ctrl.isHumanTurn })}<span class="tn">${esc(cur.name)}</span>${ctrl.isHumanTurn ? '<span class="pill">내 차례</span>' : ''}`;
   const last = ctrl.lastRound ? `<div class="lastround">마지막 라운드! ${esc(s.players[s.endTriggeredBy].name)}이(가) 21점 달성</div>` : '';
   const pct = ctrl.finished ? 0 : Math.max(0, Math.min(100, (timer.remaining / timer.limit) * 100));
-  const urgent = !ctrl.finished && timer.remaining <= 10 ? ' urgent' : '';
+  const urgent = !ctrl.finished && timer.remaining <= 7 ? ' urgent' : '';
   return `<div class="topbar">
       <div class="round">R<b>${round}</b></div>
       <div class="turn ${ctrl.isHumanTurn ? 'mine' : ''}">${mid}</div>
@@ -196,8 +204,19 @@ export function railHTML(ctrl) {
       <span class="ring" style="--p:${pct}">${avatarHTML(p.name, p.id, { me: isMe })}</span>
       ${p.isAI ? `<span class="bot">${aiTag(ctrl)}</span>` : ''}
       <span class="rsc"><b>${pts}</b></span>
-    </button>`;
+    </button>${isMe ? '' : railStatsHTML(p)}`;
   }).join('');
+}
+
+// 상대 보물·보너스 요약: 0인 색은 숨겨 초반엔 비어 있고, 가진 것만 아이콘+숫자로 (보너스는 작은 금색 +n)
+function railStatsHTML(p) {
+  const bonus = getBonuses(p);
+  const cells = TOKEN_KEYS.map((k) => {
+    const t = p.tokens[k] || 0, b = k === MASTER ? 0 : (bonus[k] || 0);
+    if (!t && !b) return '';
+    return `<span class="rs-cell" title="${BALLS[k].name} 보물 ${t} · 보너스 ${b}">${ballImg(k, 'rs-ic')}<b>${t}</b>${b ? `<i>+${b}</i>` : ''}</span>`;
+  }).join('');
+  return `<div class="rail-stats" aria-label="보물 ${tokenCount(p)}개">${cells || '<span class="rs-none">—</span>'}</div>`;
 }
 
 
@@ -252,7 +271,7 @@ function handHTML(ctrl) {
   const me = ctrl.me;
   if (!me.hand.length) return '<div class="empty-note">찜한 카드 없음 (최대 3장)</div>';
   return me.hand.map((card) => `
-    <button class="rsv ${ctrl.canBuy(card.id) ? 'buyable' : ctrl.canBuyAfterTake(card.id) ? 'buyable-next' : ''}" data-action="card" data-card="${card.id}" data-zone="hand" ${ctrl.isHumanTurn ? '' : 'disabled'}>
+    <button class="rsv ${ctrl.canBuy(card.id) ? 'buyable' : ctrl.canBuyAfterTake(card.id) ? 'buyable-next' : ''}" data-action="card" data-card="${card.id}" data-zone="hand">
       ${staticSprite(card, 'tiny', true)}${card.name} <small>${tierLabel[card.tier]}${card.points ? ` · ${card.points}점` : ''}</small></button>`).join('');
 }
 
@@ -340,7 +359,7 @@ export function aiToastHTML(ctrl) {
 }
 
 // 성장 성공 연출: 이전 인물이 빛에 휩싸였다가 다음 단계 인물로 터져 나온다 (CSS .evofx)
-export function evolveFxHTML(from, to) {
+export function evolveFxHTML(from, to, owner = null) {
   const sparks = Array.from({ length: 14 }, (_, i) => `<i style="--a:${(i * 360) / 14}deg;--r:${46 + (i % 3) * 14}px;--dl:${(i % 4) * 40}ms"></i>`).join('');
   return `<div class="evofx" role="status" aria-live="polite">
     <div class="evo-rays"></div><div class="evo-ring"></div>
@@ -349,7 +368,7 @@ export function evolveFxHTML(from, to) {
       <img class="evo-to" src="${animSrc(to.id)}" onerror="this.onerror=null;this.src='${pokeSrc(to.id)}'" alt="${to.name}">
       <div class="evo-sparks">${sparks}</div>
     </div>
-    <div class="evo-txt"><small>${from.name}</small><b>${to.name}</b><span>성장!</span></div>
+    <div class="evo-txt">${owner ? `<em class="evo-who">${esc(owner)}의 인물</em>` : ''}<small>${from.name}</small><b>${to.name}</b><span>성장!</span></div>
   </div>`;
 }
 
@@ -606,11 +625,12 @@ function rankedPanelHTML({ profile, gate, ban, rankedDisp }) {
     <button class="btn bigstart ranked" data-action="match" ${lock || ban ? 'disabled' : ''}>${lock ? '🔒 랭킹전 잠김' : '랭킹전 시작'}<small>4인 대전 · 시범(비공식)</small></button>`;
 }
 
-export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false }) {
+export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' } }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
   const name = esc(options.playerName || '도사');
   const ranked = options.mode === 'ranked';
+  const friendly = options.mode === 'friendly';
   const rankedDisp = displayOf(profile.ranked);
   const normalPanel = `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
         `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
@@ -631,13 +651,11 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
     <div class="home-match">
       <div class="modetabs" role="tablist" aria-label="모드 선택">
-        <button class="modetab ${ranked ? '' : 'sel'}" role="tab" data-action="mode" data-mode="normal">일반전</button>
+        <button class="modetab ${!ranked && !friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="normal">일반전</button>
         <button class="modetab ${ranked ? 'sel' : ''}" role="tab" data-action="mode" data-mode="ranked">랭킹전${gate.unlocked ? '' : ' 🔒'}</button>
+        <button class="modetab ${friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="friendly">친목전</button>
       </div>
-      ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : normalPanel}
-      <div class="friend-row"><span class="nonrank">친구 방 · 비랭크</span>
-      <div class="btnrow"><button class="btn alt" data-action="room-create">친구와 방 만들기</button>
-      <button class="btn alt" data-action="room-join">코드로 참가</button></div></div>
+      ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : friendly ? lobbyPanelHTML(lobby) : normalPanel}
     </div>
     <nav class="tabbar">
       <button data-action="dex"><span>📖</span>인물록</button>
@@ -672,7 +690,7 @@ export function queueHTML(v) {
     cd = `<div class="cd"><b class="dots">…</b><small>${v.fillBots ? '' : '봇 채움 꺼짐 · '}상대를 기다리는 중</small></div>`;
   }
   const tag = v.ranked ? `<div class="modetag ranked">랭킹전 · ${SEASON_LABEL}</div>`
-    : v.isRoom ? '<div class="modetag">친구 방 · 비랭크</div>' : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
+    : v.isRoom ? `<div class="modetag">친목전${v.locked ? ' · 🔒 비밀방' : ''} · 비랭크</div>` : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
   return `<div class="overlay screen queue">
     <div class="title big">${esc(v.title)}<small>${have}/${v.size}명</small></div>
     ${tag}
@@ -688,28 +706,78 @@ export function queueHTML(v) {
   </div>`;
 }
 
-export function joinCodeHTML(notice = '') {
+// ---------- 친목전 로비 ----------
+function lobbyPanelHTML(lobby) {
+  let list;
+  if (lobby.status === 'offline') list = '<p class="lobby-empty">온라인에 연결되어 있지 않아 방 목록을 볼 수 없어요.</p>';
+  else if (lobby.status !== 'ok') list = '<p class="lobby-empty">방 목록을 불러오는 중…</p>';
+  else if (!lobby.rooms.length) list = '<p class="lobby-empty">열린 방이 없어요. 첫 방을 만들어 보세요!</p>';
+  else {
+    list = lobby.rooms.map((r) => {
+      const full = r.playerCount >= r.size;
+      return `<button class="lobby-room ${full ? 'full' : ''}" data-action="lobby-join" data-code="${esc(r.code)}" ${full ? 'disabled' : ''}>
+        <span class="lr-title">${r.locked ? '<i class="lr-lock" aria-label="비밀번호">🔒</i>' : ''}${esc(r.title)}</span>
+        <span class="lr-host">방장 ${esc(r.hostName)}</span>
+        <span class="lr-n ${full ? 'full' : ''}">${full ? '가득' : `${r.playerCount}/${r.size}`}</span>
+      </button>`;
+    }).join('');
+  }
+  return `<div class="lobby">
+      <div class="lobby-head"><span class="nonrank">친구와 자유롭게 · 랭크 점수 변동 없음</span>
+        <button class="btn primary sm" data-action="lobby-create">+ 방 만들기</button></div>
+      <div class="lobby-list">${list}</div>
+    </div>`;
+}
+
+export function lobbyCreateHTML({ name, size, error = '' }) {
   return `<div class="overlay"><div class="panel">
-    <div class="title big">코드로 참가</div>
-    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
-    <p class="sheet-p">친구가 알려준 6자리 방 코드를 입력하세요.</p>
-    <input id="joincode" class="netinput code" maxlength="6" placeholder="ABC123" autocomplete="off">
-    <div class="btnrow"><button class="btn ghost" data-action="join-close">취소</button>
-    <button class="btn primary" data-action="join-go">참가</button></div>
+    <div class="title big">방 만들기</div>
+    <p class="sheet-p">방 제목</p>
+    <input id="lobbytitle" class="netinput" maxlength="20" placeholder="${esc(name)}의 방" autocomplete="off" enterkeyhint="done">
+    <p class="sheet-p">인원</p>
+    <div class="seg" role="group" aria-label="인원">${[2, 3, 4].map((n) => `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="lobby-size" data-n="${n}">${n}인</button>`).join('')}</div>
+    <p class="sheet-p">비밀번호 <small>(선택 · 비우면 누구나 입장)</small></p>
+    <input id="lobbypw" class="netinput" maxlength="12" placeholder="없음" autocomplete="off" enterkeyhint="done">
+    ${error ? `<p class="note">${esc(error)}</p>` : ''}
+    <div class="btnrow"><button class="btn ghost" data-action="lobby-create-close">취소</button>
+    <button class="btn primary" data-action="lobby-create-go">만들기</button></div>
   </div></div>`;
 }
 
-export function profileHTML(options, { first = false, error = '' } = {}) {
+export function lobbyPwHTML({ room, error = '' }) {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">🔒 비밀번호</div>
+    <p class="sheet-p"><b>${esc(room?.title ?? '방')}</b>에 들어가려면 비밀번호가 필요해요.</p>
+    <input id="lobbypwin" class="netinput" maxlength="12" placeholder="비밀번호" autocomplete="off" enterkeyhint="done" autofocus>
+    ${error ? `<p class="note">${esc(error)}</p>` : ''}
+    <div class="btnrow"><button class="btn ghost" data-action="lobby-pw-close">취소</button>
+    <button class="btn primary" data-action="lobby-pw-go">입장</button></div>
+  </div></div>`;
+}
+
+export function profileHTML(options, { first = false, error = '', name = options.playerName, look = options.look, tab = 'hair', busy = false } = {}) {
   return `<div class="overlay"><div class="panel">
     <div class="title big">${first ? '어서 오세요!' : '프로필'}</div>
     ${first ? '<p class="sheet-p">함께 놀 친구들에게 보일 <b>닉네임</b>을 정해 주세요. 나중에 홈의 프로필에서 바꿀 수 있어요.</p>' : ''}
     <p class="sheet-p">닉네임</p>
-    <input id="profname" class="netinput" maxlength="12" placeholder="${first ? '닉네임 (최대 12자)' : '도사'}" value="${esc(options.playerName)}" ${first ? 'autofocus enterkeyhint="done"' : ''}>
+    <input id="profname" class="netinput" maxlength="12" placeholder="${first ? '닉네임 (최대 12자)' : '도사'}" value="${esc(name)}" ${first ? 'autofocus enterkeyhint="done"' : ''}>
     ${error ? `<p class="note">${esc(error)}</p>` : ''}
-    <p class="sheet-p">대표 캐릭터</p>
-    <div class="avpick">${AVATARS.map((n) => `<button class="avopt ${options.avatar === n ? 'sel' : ''}" data-action="avatar" data-name="${n}">${avatarHTML(n, 0, { cls: 'md' })}<span>${n}</span></button>`).join('')}</div>
-    <div class="btnrow"><button class="btn primary" data-action="profile-save">${first ? '시작하기' : '저장'}</button></div>
+    ${lookEditorHTML(look, tab)}
+    <div class="btnrow">${first ? '' : '<button class="btn ghost" data-action="profile-cancel">취소</button>'}<button class="btn primary" data-action="profile-save" ${busy ? 'disabled' : ''}>${first ? '시작하기' : '저장'}</button></div>
   </div></div>`;
+}
+
+// 내 캐릭터 꾸미기: 큰 미리보기 + 부위 탭 + 선택지(각 선택지를 지금 모습에 입혀 본 썸네일)
+function lookEditorHTML(look, tab) {
+  const l = sanitizeLook(look);
+  const part = LOOK_PARTS[tab] ? tab : 'hair';
+  const tabs = Object.entries(LOOK_PARTS).map(([k, p]) => `<button class="lk-tab ${k === part ? 'sel' : ''}" data-action="look-tab" data-k="${k}">${p.label}</button>`).join('');
+  const opts = LOOK_PARTS[part].items.map(([id, label]) => `<button class="lk-opt ${l[part] === id ? 'sel' : ''}" data-action="look-pick" data-k="${part}" data-v="${id}">${lookHTML({ ...l, [part]: id }, 'md')}<span>${label}</span></button>`).join('');
+  return `<div class="lk">
+      <div class="lk-top">${lookHTML(l, 'lg')}<button class="btn ghost sm" data-action="look-random">🎲 무작위</button></div>
+      <div class="lk-tabs">${tabs}</div>
+      <div class="lk-opts">${opts}</div>
+    </div>`;
 }
 
 export function optionsHTML(options, inGame = false) {

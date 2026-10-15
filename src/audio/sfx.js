@@ -1,5 +1,5 @@
 // Sound effects via Web Audio API. Shares the AudioContext with bgm.js.
-import { unlockAudio } from './bgm.js?v=1792040398';
+import { unlockAudio } from './bgm.js?v=1792047695';
 
 let ctx = null;
 let sfxGain = null;
@@ -52,6 +52,7 @@ const F = {
 
 export const sfx = {
   // UI click
+  chat() { seq([[F.E5, 0.05], [F.A5, 0.07]], 'sine', 0.05, 0.4); },
   click() { seq([[F.C5, 0.05]], 'square', 0.06, 0.5); },
   // Take balls
   takeBall() { seq([[F.E4, 0.06], [F.G4, 0.08]], 'square', 0.07, 0.7); },

@@ -55,8 +55,30 @@ await page.press('#profname', 'Enter');
 await page.waitForSelector('.home');
 await wait(300);
 await shot('1-home-normal');
-ok(await page.locator('.modetab').count() === 2, 'two mode tabs');
-ok((await page.textContent('.nonrank')).includes('비랭크'), 'friend room labelled non-ranked');
+ok(await page.locator('.modetab').count() === 3, 'three mode tabs (normal / ranked / friendly)');
+ok(await page.locator('[data-action="room-join"]').count() === 0, 'join-by-code removed');
+
+// 1b. friendly lobby (sim shows sample rooms)
+await click('[data-action="mode"][data-mode="friendly"]');
+await wait(200);
+await shot('1b-home-friendly');
+ok((await page.textContent('.nonrank')).includes('랭크 점수 변동 없음'), 'friendly labelled non-ranked');
+ok(await page.locator('.lobby-room').count() === 3, 'lobby lists rooms');
+ok(await page.locator('.lobby-room .lr-lock').count() === 1, 'locked room shows lock');
+ok(await page.locator('.lobby-room.full[disabled]').count() === 1, 'full room disabled');
+await click('.lobby-room:has(.lr-lock)');
+await page.waitForSelector('#lobbypwin');
+await page.fill('#lobbypwin', 'wrong');
+await page.press('#lobbypwin', 'Enter');
+await wait(200);
+ok((await page.textContent('.overlay')).includes('비밀번호가 맞지 않아요'), 'wrong password rejected');
+await shot('1c-lobby-password');
+await click('[data-action="lobby-pw-close"]');
+await click('[data-action="lobby-create"]');
+await page.waitForSelector('#lobbytitle');
+await shot('1d-lobby-create');
+await click('[data-action="lobby-create-close"]');
+await click('[data-action="mode"][data-mode="normal"]');
 
 // 2. ranked tab
 await click('[data-action="mode"][data-mode="ranked"]');

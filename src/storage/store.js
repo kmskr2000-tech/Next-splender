@@ -10,9 +10,10 @@ export const RECORDS_KEY = 'ohsp-records-v1';
 export const PROFILE_KEY = 'ohsp-profile-v1';
 export const INV_KEY = 'ohsp-inv-v1';
 
-import { newRanked, applyRankedResult, applyVoidPenalty, TIERS, displayOf, leaveQueueBan } from '../meta/rating.js?v=1792040398';
-import { RANKED } from '../meta/config.js?v=1792040398';
-import { newInventory, sanitizeInventory, claimItem, equipItem } from '../meta/cosmetics.js?v=1792040398';
+import { newRanked, applyRankedResult, applyVoidPenalty, TIERS, displayOf, leaveQueueBan } from '../meta/rating.js?v=1792047695';
+import { RANKED } from '../meta/config.js?v=1792047695';
+import { newInventory, sanitizeInventory, claimItem, equipItem } from '../meta/cosmetics.js?v=1792047695';
+import { sanitizeLook } from '../ui/look.js?v=1792047695';
 
 export function browserStorage() {
   try { return globalThis.localStorage ?? null; } catch { return null; }
@@ -109,7 +110,7 @@ export function loadSave(storage, cards) {
 // ---------- Options ----------
 // { v:1, beginnerHelp: bool }
 
-const defaultOptions = () => ({ v: 1, beginnerHelp: true, difficulty: 'normal', personality: 'random', playerName: '', avatar: '하늘', queueSize: 4, fillBots: true, bgm: true, sfx: true, mode: 'normal' });
+const defaultOptions = () => ({ v: 1, beginnerHelp: true, difficulty: 'normal', personality: 'random', playerName: '', avatar: '하늘', queueSize: 4, fillBots: true, bgm: true, sfx: true, mode: 'normal', look: null });
 
 const AVATARS = new Set(['하늘', '솔이', '바우', '달래']); // representative character = trainer portrait name
 const DIFFS = new Set(['easy', 'normal', 'hard']);
@@ -129,7 +130,8 @@ export function loadOptions(storage) {
     fillBots: o.fillBots !== false,
     bgm: o.bgm !== false,
     sfx: o.sfx !== false,
-    mode: o.mode === 'ranked' ? 'ranked' : 'normal',
+    mode: ['ranked', 'friendly'].includes(o.mode) ? o.mode : 'normal',
+    look: o.look && typeof o.look === 'object' ? sanitizeLook(o.look) : null, // 내 캐릭터 꾸미기 (없으면 첫 실행 때 무작위)
   };
 }
 
@@ -145,7 +147,8 @@ export function saveOptions(storage, opts) {
     fillBots: opts.fillBots !== false,
     bgm: !!opts.bgm,
     sfx: !!opts.sfx,
-    mode: opts.mode === 'ranked' ? 'ranked' : 'normal',
+    mode: ['ranked', 'friendly'].includes(opts.mode) ? opts.mode : 'normal',
+    look: opts.look ? sanitizeLook(opts.look) : null,
   });
 }
 
