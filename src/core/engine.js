@@ -255,6 +255,8 @@ export function applyAction(state, action) {
     discard: PHASES.DISCARD,
     evolve: PHASES.EVOLVE, skipEvolve: PHASES.EVOLVE,
   };
+  // 시간 초과는 어느 단계(행동·반환·성장)에서든 차례를 끝낸다
+  if (action.type === 'timeout') return s.phase === PHASES.FINISHED ? fail('wrong_phase') : ok(s, (doTimeout(s, player, events), events));
   if (!(action.type in phaseOf)) return fail('unknown_action');
   if (phaseOf[action.type] !== s.phase) return fail('wrong_phase');
 
@@ -265,7 +267,6 @@ export function applyAction(state, action) {
     case 'reserve': error = doReserve(s, player, action, events); break;
     case 'buy': error = doBuy(s, player, action, events); break;
     case 'pass': error = doPass(state, s, events); break;
-    case 'timeout': error = doTimeout(s, events); break;
     case 'discard': error = doDiscard(s, player, action, events); break;
     case 'evolve': error = doEvolve(s, player, action, events); break;
     case 'skipEvolve': events.push({ type: 'skipEvolve', player: s.current }); endTurn(s, events); break;
@@ -384,12 +385,24 @@ function doPass(before, s, events) {
   return null;
 }
 
-// Timeout: force-end the turn when the multiplayer turn timer expires.
-// Unlike pass, this is always legal — it just skips the player's turn.
-function doTimeout(s, events) {
+// Timeout: force-end the turn when the turn timer expires (local and multiplayer).
+// Always legal while the game runs. In the discard phase the excess tokens are returned
+// deterministically (largest pile first, 여의주 last) so lockstep clients stay in sync.
+function doTimeout(s, player, events) {
+  if (s.phase === PHASES.DISCARD) {
+    let need = tokenCount(player) - MAX_TOKENS;
+    const order = [...COLORS, MASTER];
+    const tokens = {};
+    while (need > 0) {
+      const k = order.filter((c) => c !== MASTER && player.tokens[c] > 0).sort((a, b) => player.tokens[b] - player.tokens[a] || order.indexOf(a) - order.indexOf(b))[0]
+        || (player.tokens[MASTER] > 0 ? MASTER : null);
+      if (!k) break;
+      player.tokens[k] -= 1; s.supply[k] += 1; tokens[k] = (tokens[k] || 0) + 1; need -= 1;
+    }
+    events.push({ type: 'discard', player: s.current, tokens, auto: true });
+  }
   events.push({ type: 'timeout', player: s.current });
   endTurn(s, events);
-  return null;
 }
 
 function doDiscard(s, player, { tokens }, events) {

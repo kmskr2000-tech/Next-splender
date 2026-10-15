@@ -163,7 +163,7 @@ const aiPrefix = (ctrl) => (ctrl.simUsers ? '시뮬 ' : 'BOT ');
 // ---------- top bar (round + turn timer) / side rail ----------
 
 // timer: { remaining, limit } seconds
-export function headerHTML(ctrl, timer = { remaining: 0, limit: 45 }) {
+export function headerHTML(ctrl, timer = { remaining: 0, limit: 25 }) {
   const s = ctrl.state;
   const round = Math.floor(s.turn / s.players.length) + 1;
   const cur = ctrl.current;
@@ -172,7 +172,7 @@ export function headerHTML(ctrl, timer = { remaining: 0, limit: 45 }) {
   else mid = `${avatarHTML(cur.name, cur.id, { me: ctrl.isHumanTurn })}<span class="tn">${esc(cur.name)}</span>${ctrl.isHumanTurn ? '<span class="pill">내 차례</span>' : ''}`;
   const last = ctrl.lastRound ? `<div class="lastround">마지막 라운드! ${esc(s.players[s.endTriggeredBy].name)}이(가) 21점 달성</div>` : '';
   const pct = ctrl.finished ? 0 : Math.max(0, Math.min(100, (timer.remaining / timer.limit) * 100));
-  const urgent = !ctrl.finished && timer.remaining <= 10 ? ' urgent' : '';
+  const urgent = !ctrl.finished && timer.remaining <= 7 ? ' urgent' : '';
   return `<div class="topbar">
       <div class="round">R<b>${round}</b></div>
       <div class="turn ${ctrl.isHumanTurn ? 'mine' : ''}">${mid}</div>

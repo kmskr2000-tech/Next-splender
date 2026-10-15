@@ -65,7 +65,7 @@ import { itemById, itemName } from '../meta/catalog.js?v=1792040398';
 const params = new URLSearchParams(location.search);
 const AI_DELAY = params.has('fast') ? 0 : 1600; // ?fast=1 skips the pacing delay (tests)
 const QUEUE_WAIT_S = params.has('fast') ? 2 : 12; // seconds before empty seats are bot-filled
-const LOCAL_TURN_LIMIT_S = 45;
+const LOCAL_TURN_LIMIT_S = 25;
 const FORCE_SIM = params.has('sim');
 // Ranked unlock gate: off by default for development. Set RANKED_UNLOCK.enforce=true in src/meta/config.js, or open with ?lock=1.
 const RANKED_ENFORCE = RANKED_UNLOCK.enforce || params.has('lock');
@@ -132,7 +132,7 @@ const localTimer = { key: '', deadline: 0 };
 function turnInfo() {
   const localLimit = curMatch?.mode === 'ranked' ? RANKED.turnLimitMs / 1000 : LOCAL_TURN_LIMIT_S;
   if (!ctrl) return { remaining: 0, limit: localLimit };
-  if (net && ctrl.mp) return { remaining: net.getTurnRemaining(), limit: Math.round((net.turnLimitMs || 45000) / 1000) };
+  if (net && ctrl.mp) return { remaining: net.getTurnRemaining(), limit: Math.round((net.turnLimitMs || 25000) / 1000) };
   const g = ctrl.game;
   const key = `${g.turn}:${g.current}:${g.phase}`;
   if (localTimer.key !== key) { localTimer.key = key; localTimer.deadline = Date.now() + localLimit * 1000; }
@@ -149,12 +149,12 @@ function tick() {
   const bar = $('timerbar');
   if (bar) {
     bar.style.setProperty('--p', Math.max(0, Math.min(100, (t.remaining / t.limit) * 100)));
-    bar.classList.toggle('urgent', t.remaining <= 10);
+    bar.classList.toggle('urgent', t.remaining <= 7);
   }
   // Local game: the human seat times out like online seats do.
   if (!ctrl.mp && t.remaining <= 0 && ctrl.isHumanTurn) { ctrl.dispatch({ type: 'timeout' }); render(); }
 }
-setInterval(tick, 500);
+setInterval(tick, 250); // 시간 초과 시 바로 차례가 넘어가도록 촘촘히
 
 function render() {
   // Game end SFX (once)
@@ -417,7 +417,7 @@ async function startNetQueue(size, ranked = false) {
   if (!queue || !net) return; // cancelled meanwhile
   queue.searching = false;
   if (target) net.guestJoin(myName(), target.code);
-  else net.hostCreate(myName(), title, ranked ? RANKED.turnLimitMs : 45000);
+  else net.hostCreate(myName(), title, ranked ? RANKED.turnLimitMs : 25000);
 }
 
 // ---------- 친목전 로비 ----------
@@ -455,7 +455,7 @@ async function createLobbyRoom(title, size, pw) {
   cancelQueue();
   queue = { mode: 'net', size, isRoom: true, title: clean, locked: !!pwHash, deadline: 0, searching: false, starting: false, notice: '' };
   openNet();
-  net.hostCreate(myName(), clean, 45000, { kind: 'lobby', size, pwHash });
+  net.hostCreate(myName(), clean, 25000, { kind: 'lobby', size, pwHash });
   render();
 }
 async function joinLobbyRoom(code, pw = null) {

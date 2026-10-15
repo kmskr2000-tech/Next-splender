@@ -141,7 +141,7 @@ function classifyRooms(snap) {
         hostName: r.hostName || '?',
         playerCount: 1 + guests, // host + guests
         created: r.created || 0,
-        turnLimitMs: r.turnLimitMs || 45000,
+        turnLimitMs: r.turnLimitMs || 25000,
         kind: r.kind || 'match', // 'lobby' = 친목전 로비 방, 그 외 = 빠른대전/랭킹전 매칭 방
         size: r.size || 4,
         locked: !!r.pwHash,
@@ -206,7 +206,7 @@ export class FirebaseRoom {
   // ---------- host ----------
 
   /** Host: create a room, return the 6-char code. */
-  async hostCreate(hostName = '', title = '', turnLimitMs = 45000, meta = {}) {
+  async hostCreate(hostName = '', title = '', turnLimitMs = 25000, meta = {}) {
     this.isHost = true;
     this.turnLimitMs = turnLimitMs;
     const db = getDb();
@@ -455,7 +455,7 @@ export class FirebaseRoom {
         const roomSnap = await db.ref(`${ROOMS_PATH}/${clean}`).once('value');
         if (!roomSnap.exists()) throw new Error('room-not-found');
         const roomData = roomSnap.val() || {};
-        this.turnLimitMs = roomData.turnLimitMs || 45000;
+        this.turnLimitMs = roomData.turnLimitMs || 25000;
 
         const guestId = genId();
         this.myGuestId = guestId;

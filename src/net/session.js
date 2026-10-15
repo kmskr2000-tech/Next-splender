@@ -8,7 +8,7 @@ import { FirebaseRoom } from './fireroom.js?v=1792040398';
 import { MSG, makeMsg, stateHash } from './protocol.js?v=1792040398';
 
 const MAX_PLAYERS = 4;
-const DEFAULT_TURN_LIMIT_MS = 45 * 1000; // 45 seconds per turn
+const DEFAULT_TURN_LIMIT_MS = 25 * 1000; // 25 seconds per turn
 
 export class NetSession {
   // cb: { onRender(), onGameStart(ctrl), onGameEnd(), onNotice(msg) }
@@ -420,7 +420,7 @@ export class NetSession {
     this.cb.onGameStart(ctrl);
   }
 
-  /** Reset the 90s turn timer. Called on game start and after each action. */
+  /** Reset the turn timer. Called on game start and after each action. */
   resetTurnTimer() {
     this.turnDeadline = Date.now() + this.turnLimitMs;
   }
@@ -458,7 +458,7 @@ export class NetSession {
         }
         this.resetTurnTimer();
       }
-    }, 1000);
+    }, 250); // 시간이 다 되면 바로 넘어가도록 촘촘히 확인
     // Don't keep Node.js process alive in tests.
     if (this._turnTimer.unref) this._turnTimer.unref();
   }

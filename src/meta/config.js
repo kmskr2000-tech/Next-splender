@@ -12,7 +12,7 @@ export const RANKED_UNLOCK = {
 
 export const RANKED = {
   playerCount: 4, // fixed. Ops flag for 3 players is a modes-ranked 1.2.2 open question (Q1); not exposed here.
-  turnLimitMs: 40000,
+  turnLimitMs: 25000,
   seasonId: 'S0',
   official: false, // stage 1: client-recorded trial season. Server authority (D8) must exist before this is true.
 };
