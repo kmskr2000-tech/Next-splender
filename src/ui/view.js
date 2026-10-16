@@ -372,6 +372,13 @@ export function evolveFxHTML(from, to, owner = null) {
   </div>`;
 }
 
+/** 상대 성장 미니 알림: 전 단계 → 다음 단계 얼굴 + "성장!" (플레이어 줄 옆, 조작을 막지 않음) */
+export function evolveMiniHTML(from, to, seat) {
+  return `<div class="evo-mini" data-seat="${seat}" role="status" aria-live="polite">
+    <img class="em-from" src="${pokeSrc(from.id)}" alt=""><i>→</i><img class="em-to" src="${pokeSrc(to.id)}" alt="${to.name}"><b>성장!</b>
+  </div>`;
+}
+
 // ---------- sheet + overlays ----------
 
 function oppSheetHTML(p, ctrl) {

@@ -318,14 +318,27 @@ let evoFxTimer = 0;
 function showEvolveFx(fromId, toId, player) {
   const from = cardsById.get(fromId), to = cardsById.get(toId);
   if (!from || !to) return;
+  const others = ctrl && player != null && player !== ctrl.human;
+  if (others) { showEvolveMini(from, to, player); return; }
   document.querySelector('.evofx')?.remove();
-  // 내 성장이 아니면 누구의 성장인지 이름을 붙인다
-  const owner = ctrl && player != null && player !== ctrl.human ? ctrl.game.players[player]?.name : null;
-  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to, owner));
-  if (owner) sfx.evolve(); // 내 성장은 버튼을 누를 때 이미 소리가 난다
+  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to));
   const el = document.body.lastElementChild;
   clearTimeout(evoFxTimer);
   evoFxTimer = setTimeout(() => el.remove(), 2900);
+}
+
+// 상대의 성장은 화면을 가리지 않게 오른쪽 플레이어 줄 그 사람 얼굴 옆에 작게 잠깐 보여 준다
+function showEvolveMini(from, to, player) {
+  const anchor = document.querySelector(`.rail-item[data-id="${player}"]`);
+  if (!anchor) return;
+  document.querySelector(`.evo-mini[data-seat="${player}"]`)?.remove();
+  const r = anchor.getBoundingClientRect();
+  document.body.insertAdjacentHTML('beforeend', V.evolveMiniHTML(from, to, player));
+  const el = document.body.lastElementChild;
+  el.style.right = `${window.innerWidth - r.left + 6}px`;
+  el.style.top = `${r.top + r.height / 2}px`;
+  sfx.evolve();
+  setTimeout(() => el.remove(), 2200);
 }
 
 const hooks = {
