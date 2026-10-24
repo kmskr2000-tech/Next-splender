@@ -13,7 +13,7 @@ export const LOOK_PARTS = {
   bg: { label: '배경', items: [['hanji', '한지'], ['peach', '복숭아'], ['sky', '하늘'], ['mint', '쑥'], ['lilac', '보라'], ['night', '밤']] },
 };
 const TINT = { red: '', gold: 'hue-rotate(42deg) saturate(1.1)', jade: 'hue-rotate(150deg)', blue: 'hue-rotate(215deg)', plum: 'hue-rotate(285deg)', ink: 'grayscale(1) brightness(.5)' };
-const BG = { hanji: '#F3E7CF', peach: '#F8D3C2', sky: '#CFE3F2', mint: '#D3EBD5', lilac: '#E2D6F0', night: '#2B3448' };
+export const LOOK_BG = { hanji: '#F3E7CF', peach: '#F8D3C2', sky: '#CFE3F2', mint: '#D3EBD5', lilac: '#E2D6F0', night: '#2B3448' };
 const KEYS = ['hair', 'hat', 'face', 'cloth', 'tint', 'bg'];
 
 export const DEFAULT_LOOK = { hair: 'base', hat: 'none', face: 'base', cloth: 'base', tint: 'red', bg: 'hanji' };
@@ -51,19 +51,34 @@ function layersOf(l) {
     + (l.hat !== 'none' ? layer(`hat_${l.hat}`) : '');
 }
 
-/** 로비용 '살아 있는' 내 캐릭터: 테두리 없이 크게 서서 숨쉬기·흔들림·눈 깜빡임 (D27).
- *  깜빡임 덮개는 기본 몸체의 눈 위치(64px 기준 x21~27·x36~42, y32~37)에 피부색으로 덮는다. 눈을 바꾸는 표정은 제외. */
+// 전신 하체(D28): 옷마다 바지/도포 자락/갑옷 하의 스타일, 옷 색 부분(hem)은 옷 색 필터를 같이 받는다
+const LOWER = { base: 'pants', hanbok: 'pants', saekdong: 'pants', dopo: 'robe', gwanbok: 'robe', armor: 'armor' };
+
+/** 로비용 '살아 있는' 내 캐릭터 (전신 64x96): 숨쉬기·흔들림·눈 깜빡임 (D27·D28).
+ *  층 순서: 몸 → 옷 → 하체 → 옷 아랫단 → 손 → 얼굴 → 머리 → 모자.
+ *  깜빡임 덮개는 기본 몸체 눈 위치(64px 기준 x21~27·x36~42, y32~37)에 피부색으로 덮는다. 눈을 바꾸는 표정은 제외. */
 export function lookStandHTML(look) {
   const l = sanitizeLook(look);
+  const st = LOWER[l.cloth] || 'pants';
+  const tint = l.cloth !== 'base' && TINT[l.tint] ? `filter:${TINT[l.tint]}` : '';
+  const layer = (src, style = '') => `<img src="${DIR}/${src}.png" alt=""${style ? ` style="${style}"` : ''}>`;
   const blink = ['base', 'brave', 'shock'].includes(l.face);
-  return `<span class="look-stand"><span class="ls-body">${layersOf(l)}${blink ? '<i class="ls-blink l"></i><i class="ls-blink r"></i>' : ''}</span></span>`;
+  return `<span class="look-stand full"><span class="ls-body">`
+    + layer('base')
+    + (l.cloth !== 'base' ? layer(`cloth_${l.cloth}`, tint) : '')
+    + layer(`legs_${st}`) + layer(`hem_${l.cloth}`, tint) + layer(`hands_${st}`)
+    + (l.face !== 'base' ? layer(`face_${l.face}`) : '')
+    + (l.hair !== 'base' ? layer(`hair_${l.hair}`) : '')
+    + (l.hat !== 'none' ? layer(`hat_${l.hat}`) : '')
+    + (blink ? '<i class="ls-blink l"></i><i class="ls-blink r"></i>' : '')
+    + '</span></span>';
 }
 
 /** Layered avatar. `cls` adds the usual .av size classes (sm/md/lg) and frame classes. */
 export function lookHTML(look, cls = '') {
   const l = sanitizeLook(look);
   const layer = (src, style = '') => `<img src="${DIR}/${src}.png" alt=""${style ? ` style="${style}"` : ''}>`;
-  return `<span class="av look ${cls}" style="--bg:${BG[l.bg]}">`
+  return `<span class="av look ${cls}" style="--bg:${LOOK_BG[l.bg]}">`
     + layer('base')
     + (l.cloth !== 'base' ? layer(`cloth_${l.cloth}`, TINT[l.tint] ? `filter:${TINT[l.tint]}` : '') : '')
     + (l.face !== 'base' ? layer(`face_${l.face}`) : '')

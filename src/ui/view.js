@@ -12,7 +12,7 @@ import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog
 import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792846825';
 import { displayOf } from '../meta/rating.js?v=1792846825';
 import { SPRITE_BOX } from './spritebox.js?v=1792846825';
-import { LOOK_PARTS, lookHTML, lookStandHTML, sanitizeLook } from './look.js?v=1792846825';
+import { LOOK_PARTS, LOOK_BG, lookHTML, lookStandHTML, sanitizeLook } from './look.js?v=1792846825';
 
 
 const ASSET = 'assets';
@@ -882,7 +882,7 @@ function lookEditorHTML(look, tab) {
   const tabs = Object.entries(LOOK_PARTS).map(([k, p]) => `<button class="lk-tab ${k === part ? 'sel' : ''}" data-action="look-tab" data-k="${k}">${p.label}</button>`).join('');
   const opts = LOOK_PARTS[part].items.map(([id, label]) => `<button class="lk-opt ${l[part] === id ? 'sel' : ''}" data-action="look-pick" data-k="${part}" data-v="${id}">${lookHTML({ ...l, [part]: id }, 'md')}<span>${label}</span></button>`).join('');
   return `<div class="lk">
-      <div class="lk-top">${lookHTML(l, 'lg')}<button class="btn ghost sm" data-action="look-random">🎲 무작위</button></div>
+      <div class="lk-top"><span class="lk-stage" style="--bg:${LOOK_BG[l.bg]}">${lookStandHTML(l)}</span><button class="btn ghost sm" data-action="look-random">🎲 무작위</button></div>
       <div class="lk-tabs">${tabs}</div>
       <div class="lk-opts">${opts}</div>
     </div>`;
