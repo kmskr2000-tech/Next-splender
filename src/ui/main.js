@@ -190,6 +190,7 @@ function render() {
   checkNetFail();
   { const ab = $('actionbar'); if (ab && ctrl) document.documentElement.style.setProperty('--dockh', ab.offsetHeight + 'px'); }
   syncLobbyWatch();
+  document.body.classList.toggle('on-result', !!(ctrl && ctrl.finished)); // 결과 화면 전용 배치(업적 알림 위치)
   // 온라인 상대의 꾸민 모습 (오프라인/AI 게임은 초상화)
   V.setSeatLooks(net?.looks?.length ? net.looks.map((c) => (c ? decodeLook(c) : null)) : null);
   let overlay;
@@ -718,6 +719,8 @@ document.addEventListener('click', (e) => {
   unlockAudio();
   if (options.bgm && !ctrl) startBGM('calm');
   const d = el.dataset;
+  // 메뉴·탭 버튼 공통 클릭음 (게임 행동은 각자 고유 효과음이 있어 제외)
+  if (!['ball', 'confirm-balls', 'buy', 'reserve', 'reserve-deck', 'evolve', 'discard', 'confirm-discard'].includes(d.action)) sfx.click();
   switch (d.action) {
     case 'dex': dexOpen = true; break;
     case 'dex-close': dexOpen = false; break;

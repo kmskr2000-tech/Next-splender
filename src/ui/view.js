@@ -704,7 +704,9 @@ export function queueHTML(v) {
   }
   const tag = v.ranked ? `<div class="modetag ranked">랭킹전 · ${SEASON_LABEL}</div>`
     : v.isRoom ? `<div class="modetag">친목전${v.locked ? ' · 🔒 비밀방' : ''} · 비랭크</div>` : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
+  const tip = QUEUE_TIPS[Math.floor(Date.now() / 4500) % QUEUE_TIPS.length];
   return `<div class="overlay screen queue">
+    <div class="q-seal" aria-hidden="true"><span>寶</span></div>
     <div class="title big">${esc(v.title)}<small>${have}/${v.size}명</small></div>
     ${tag}
     ${v.ranked && v.tierDisp ? `<div class="qtier">${tierBadgeHTML(v.tierDisp)}</div>` : ''}
@@ -716,8 +718,18 @@ export function queueHTML(v) {
       ${v.host && !v.starting && !v.ranked ? `<button class="btn primary" data-action="room-start" ${have < 2 && !v.fillBots ? 'disabled' : ''}>${have < v.size ? '봇 채우고 시작' : '게임 시작'}</button>` : ''}
       <button class="btn ghost" data-action="queue-cancel">${v.isRoom ? '방 나가기' : '매칭 취소'}</button>
     </div>
+    <p class="q-tip"><b>TIP</b> ${tip}</p>
   </div>`;
 }
+// 대기 중 돌아가며 보여 주는 한 줄 팁
+const QUEUE_TIPS = [
+  '같은 색 보너스를 모으면 비싼 인물도 공짜로 영입할 수 있어요.',
+  '희귀·전설 인물은 마패가 꼭 필요해요. 찜하면 마패를 받아요.',
+  '전 단계 인물을 가지고 있으면 카드 아래가 초록 「← 내 ○○」로 바뀌어요.',
+  '보물은 10개까지! 넘치면 돌려줘야 하니 미리 계획하세요.',
+  '상대 얼굴 옆 숫자는 가진 보물, 초록 +n은 보너스예요.',
+  '··· 버튼으로 이모티콘을 보내 인사해 보세요!',
+];
 
 // ---------- 친목전 로비 ----------
 function lobbyPanelHTML(lobby) {
