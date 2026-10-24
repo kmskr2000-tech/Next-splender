@@ -1,6 +1,6 @@
 // 게임 주스: 차례 배너, 점수 팝업, 범프, 마지막 라운드 알림.
 // main.js 의 render() 끝에서 afterRender(ctrl) 만 호출하면 된다. 모든 오버레이는 pointer-events:none 이며 스스로 제거된다.
-import { getPoints } from '../core/engine.js?v=1792061648';
+import { getPoints } from '../core/engine.js?v=1792846825';
 
 const REDUCED = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 

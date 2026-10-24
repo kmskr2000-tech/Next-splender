@@ -1,7 +1,7 @@
 // node tests/missions.test.mjs -- 오늘의 과제: 진행 누적, 날짜 초기화, 보상 지급(중복 불가)
 import assert from 'node:assert/strict';
-import { loadMissions, recordGameForMissions, missionRows, claimMission } from '../src/meta/missions.js?v=1792061648';
-import { loadInventory } from '../src/storage/store.js?v=1792061648';
+import { loadMissions, recordGameForMissions, missionRows, claimMission } from '../src/meta/missions.js?v=1792846825';
+import { loadInventory } from '../src/storage/store.js?v=1792846825';
 let pass = 0;
 const t = (n, f) => { try { f(); pass++; console.log('ok   ' + n); } catch (e) { console.log('FAIL ' + n + '\n     ' + e.message); process.exitCode = 1; } };
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };

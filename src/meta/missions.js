@@ -1,7 +1,7 @@
 // 오늘의 과제 (D25): 날마다 3개, 완료하면 엽전. 로비 화면의 되돌아올 이유.
 // 저장: localStorage 'ohsp-missions-v1' = { day: 'YYYY-MM-DD', prog: { id: n }, claimed: [id] }
 // 진행은 판이 끝날 때(모든 모드) recordGameForMissions 로 한 번에 더한다.
-import { loadInventory, saveInventory } from '../storage/store.js?v=1792061648';
+import { loadInventory, saveInventory } from '../storage/store.js?v=1792846825';
 
 export const MISSIONS_KEY = 'ohsp-missions-v1';
 export const DAILY_MISSIONS = [
