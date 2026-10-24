@@ -52,6 +52,7 @@ import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=179206164
 import { getPoints, bonusList } from '../core/engine.js?v=1792061648';
 import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792061648';
 import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792061648';
+import { afterRender as juiceAfterRender, myTurnBanner, resetJuice } from './juice.js?v=1792061648';
 import {
   browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult,
   loadProfile, recordNormalGame, recordRankedMatch, recordRankedLeave, rankedDisplay,
@@ -170,6 +171,8 @@ function render() {
   // Game end SFX (once)
   if (ctrl && ctrl.finished && !lastFinished) {
     lastFinished = true;
+    // 결과 화면 위에 성장 연출·미니 알림이 남지 않게 정리
+    document.querySelectorAll('.evofx, .evo-mini').forEach((el) => el.remove());
     const won = ctrl.state.ranking && ctrl.state.ranking[0]?.player === ctrl.human;
     if (won) sfx.win(); else sfx.lose();
     finalizeMatch(won);
@@ -177,7 +180,7 @@ function render() {
     lastFinished = false;
   }
   if (ctrl && !ctrl.finished && ctrl.isHumanTurn && lastTurnPlayer !== ctrl.game.current) {
-    if (lastTurnPlayer !== -1) sfx.yourTurn();
+    if (lastTurnPlayer !== -1) { sfx.yourTurn(); myTurnBanner(); } // 내 차례 배너
   }
   lastTurnPlayer = ctrl ? ctrl.game.current : -1;
 
@@ -212,6 +215,7 @@ function render() {
   // Don't clobber a half-typed input on the home/join screens with an identical re-render.
   setHTML('overlay', overlay);
   renderChat();
+  juiceAfterRender(ctrl); // 점수/토큰 범프, +N 팝업, 마지막 라운드 알림
   scheduleAI();
 }
 
@@ -383,6 +387,7 @@ function enterGame(c) {
   queue = null;
   localTimer.key = '';
   resetCache();
+  resetJuice(); // 이전 게임의 연출 상태 초기화
   window.__ctrl = ctrl; // debugging / automated tests
   if (options.bgm) startBGM('main');
   render();
@@ -863,3 +868,13 @@ window.__render = render; // automated tests
 window.__chat = chat; // automated tests (screenshots without a server)
 render();
 registerExistingName();
+
+// 시작 화면: 그림이 다 불러와지면(최소 0.6초) 걷어낸다. 늦어도 4초 뒤에는 무조건 걷는다.
+{
+  const sp = document.getElementById('splash');
+  const t0 = performance.now();
+  const hide = () => { if (!sp || sp.classList.contains('hide')) return; sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); };
+  const later = () => setTimeout(hide, Math.max(0, 600 - (performance.now() - t0)));
+  if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
+  setTimeout(hide, 4000);
+}

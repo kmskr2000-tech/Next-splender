@@ -651,9 +651,15 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
       <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
     </div>
     <div class="home-hero">
-      <div class="title big">조선 스플렌더<small>K-SPLENDOR · DOT EDITION</small></div>
-      <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-013', 't3-011'].map((id, i) => `<span class="hc ${i === 1 ? 'mid' : ''}"><img src="${pokeSrc(id)}" alt=""></span>`).join('')}</div>
-      <p class="hero-sub">보물을 모아 21점을 먼저 채워라!</p>
+      <h1 class="logo" aria-label="조선 스플렌더">
+        <span class="logo-kicker">K · SPLENDOR</span>
+        <span class="logo-main"><span class="lm-a">조선</span><span class="lm-b">스플렌더</span></span>
+        <span class="logo-seal" aria-hidden="true">寶</span>
+      </h1>
+      <div class="hero-stage">
+        <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-013', 't3-011'].map((id, i) => `<span class="hc ${i === 1 ? 'mid' : ''}"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></span>`).join('')}</div>
+      </div>
+      <p class="hero-sub">보물을 모아 <b>21점</b>을 먼저 채워라!</p>
     </div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
     <div class="home-match">
@@ -844,25 +850,38 @@ export function leaveConfirmHTML({ voidLeave }) {
   </div></div>`;
 }
 
+// 결과 화면 (D24): 어두운 옻칠 배경 + 내 순위 배너 + 메달 순위표. 우승이면 금빛 꽃가루.
+const RANK_TITLE = { 1: '우승!', 2: '준우승', 3: '3위', 4: '4위' };
 export function endHTML(ctrl, res = null) {
   const s = ctrl.state;
-  const rows = s.ranking.map((r) => {
+  const myRow = s.ranking.find((r) => r.player === ctrl.human);
+  const myRank = myRow?.rank;
+  const win = myRank === 1;
+  const rows = s.ranking.map((r, i) => {
     const p = s.players[r.player];
     const isMe = p.id === ctrl.human;
-    return `<tr class="${r.rank === 1 ? 'win' : ''} ${isMe ? 'me' : ''}"><td class="rk">${r.rank}</td>
-      <td class="who">${avatarHTML(p.name, p.id, { me: isMe, cls: 'sm' })}<span>${p.isAI ? (ctrl.simUsers ? '<em class="botmark sim">시뮬 유저</em> ' : 'BOT ') : ''}${esc(p.name)}</span></td>
-      <td>${r.points}점</td><td>성장 ${r.evolutions}</td><td>${r.pokemon}명</td></tr>`;
+    const tag = p.isAI ? (ctrl.simUsers ? '<em class="botmark sim">시뮬</em>' : '<em class="botmark">BOT</em>') : '';
+    return `<li class="rs-row m${r.rank} ${isMe ? 'me' : ''}" style="--i:${i}">
+      <span class="rs-medal">${r.rank}</span>
+      ${avatarHTML(p.name, p.id, { me: isMe, cls: 'md' })}
+      <span class="rs-who"><b>${esc(p.name)}</b>${tag}${isMe ? '<em class="memark">나</em>' : ''}<small>성장 ${r.evolutions} · 인물 ${r.pokemon}명</small></span>
+      <span class="rs-pts"><b>${r.points}</b><small>점</small></span>
+    </li>`;
   }).join('');
-  const myRank = s.ranking.find((r) => r.player === ctrl.human)?.rank;
   const again = res?.mode === 'ranked' ? '다시 랭킹전' : '다시 매칭';
-  return `<div class="overlay screen result"><div class="panel">
-    <div class="title big">${myRank === 1 ? '우승!' : `${myRank}위`}<small>${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : '최종 순위'}</small></div>
-    <table class="rank">${rows}</table>
+  const confetti = win ? `<div class="rs-confetti" aria-hidden="true">${Array.from({ length: 26 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${(i % 7) * 0.18}s;--c:${['#E3B130', '#C8402F', '#2E9C8A', '#F1EEE4', '#2E5FA8'][i % 5]}"></i>`).join('')}</div>` : '';
+  return `<div class="overlay screen result ${win ? 'won' : ''}">${confetti}
+    <div class="rs-head">
+      <div class="rs-ribbon"><span>${RANK_TITLE[myRank] || `${myRank}위`}</span></div>
+      <div class="rs-me">${avatarHTML(ctrl.me.name, ctrl.human, { me: true, cls: 'lg' })}<span class="rs-score"><b>${myRow?.points ?? 0}</b>점</span></div>
+      <p class="rs-sub">${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : win ? '21점 고지에 가장 먼저 올랐어요!' : '다음 판엔 꼭 우승해요!'}</p>
+    </div>
+    <ol class="rs-list">${rows}</ol>
     ${rpResultHTML(res)}
-    <p class="sheet-p">동점은 성장 횟수가 많은 쪽 → 영입한 인물 수가 적은 쪽이 이겨요.</p>
-    <div class="btnrow"><button class="btn ghost" data-action="restart">홈으로</button>
+    <p class="rs-note">동점은 성장 횟수가 많은 쪽 → 영입한 인물 수가 적은 쪽이 이겨요.</p>
+    <div class="btnrow rs-btns"><button class="btn ghost" data-action="restart">홈으로</button>
     <button class="btn primary" data-action="rematch">${again}</button></div>
-  </div></div>`;
+  </div>`;
 }
 
 // ---------- shop (skeleton: free claim + equip only; paid items show "준비 중") ----------
