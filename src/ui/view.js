@@ -632,7 +632,7 @@ function rankedPanelHTML({ profile, gate, ban, rankedDisp }) {
     <button class="btn bigstart ranked" data-action="match" ${lock || ban ? 'disabled' : ''}>${lock ? '🔒 랭킹전 잠김' : '랭킹전 시작'}<small>4인 대전 · 시범(비공식)</small></button>`;
 }
 
-export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' } }) {
+export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' }, missions = [], wallet = { yeopjeon: 0 }, news = [] }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
   const name = esc(options.playerName || '도사');
@@ -641,14 +641,32 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
   const rankedDisp = displayOf(profile.ranked);
   const normalPanel = `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
         `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
-      <button class="btn bigstart" data-action="match">매칭 시작<small>${size}인 대전 · 랭크 점수 변동 없음</small></button>
+      <button class="btn bigstart" data-action="match">대전 시작<small>${size}인 일반전 · 랭크 점수 변동 없음</small></button>
       <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span>
         <span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>`;
-  return `<div class="overlay screen home">
-    <div class="home-top">
-      <button class="profile-chip px" data-action="profile">${avatarHTML(options.avatar, 0, { me: true, cls: 'sm' })}
-        <span><b>${name}</b>${myTitleHTML()}<small>${g.played}판 ${g.won}승</small></span>${tierBadgeHTML(rankedDisp, { size: 'sm' })}</button>
-      <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
+  const title = titleOf(myEquipped);
+  const claimable = missions.filter((m) => m.claimable).length;
+  const banners = news.map((n) => `<button class="nb ${n.cls}" data-action="${n.action}" ${n.mode ? `data-mode="${n.mode}"` : ''}>
+      <span class="nb-txt"><small>${esc(n.kicker)}</small><b>${esc(n.title)}</b><em>${esc(n.body)}</em></span>
+      ${n.art ? `<img class="nb-art" src="${pokeSrc(n.art)}" alt="">` : lookHTML(options.look, 'md nb-look')}
+    </button>`).join('');
+  const missionRows = missions.map((m) => `<li class="ms ${m.claimed ? 'claimed' : m.claimable ? 'ready' : ''}">
+      <span class="ms-ic">${m.icon}</span>
+      <span class="ms-body"><b>${esc(m.label)}</b><span class="ms-bar"><i style="width:${Math.round((m.cur / m.need) * 100)}%"></i></span><small>${m.cur}/${m.need}</small></span>
+      ${m.claimed ? '<span class="ms-done">완료</span>' : m.claimable ? `<button class="btn primary sm" data-action="mission-claim" data-id="${m.id}">엽전 ${m.reward}</button>` : `<span class="ms-reward">엽전 ${m.reward}</span>`}
+    </li>`).join('');
+  return `<div class="overlay screen home lobby-v2">
+    <div class="hud">
+      <button class="hud-me" data-action="profile" aria-label="프로필">
+        ${avatarHTML(options.avatar, 0, { me: true, cls: 'md' })}
+        <span class="hud-txt"><b>${name}</b><small>${title ? esc(title.text) : '새내기 도사'} · ${g.played}판 ${g.won}승</small></span>
+        ${tierBadgeHTML(rankedDisp, { size: 'sm' })}
+      </button>
+      <div class="hud-right">
+        <button class="hud-coin" data-action="shop" aria-label="엽전 · 상점"><i>🪙</i><b>${wallet.yeopjeon}</b></button>
+        <button class="iconbtn" data-action="rules" aria-label="룰 설명">?</button>
+        <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
+      </div>
     </div>
     <div class="home-hero">
       <h1 class="logo" aria-label="조선 스플렌더">
@@ -657,11 +675,20 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
         <span class="logo-seal" aria-hidden="true">寶</span>
       </h1>
       <div class="hero-stage">
-        <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-013', 't3-011'].map((id, i) => `<span class="hc ${i === 1 ? 'mid' : ''}"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></span>`).join('')}</div>
+        <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-011'].map((id) => `<span class="hc side"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></span>`).join('')}</div>
+        <button class="hero-me" data-action="profile" aria-label="내 캐릭터 꾸미기">
+          ${avatarHTML(options.avatar, 0, { me: true, cls: 'xl' })}
+          <span class="hero-plate">${name}${title ? `<em class="ttl ${title.css}">${esc(title.text)}</em>` : ''}</span>
+          <span class="hero-edit">꾸미기</span>
+        </button>
       </div>
-      <p class="hero-sub">보물을 모아 <b>21점</b>을 먼저 채워라!</p>
     </div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
+    <div class="news-row" aria-label="소식">${banners}</div>
+    <section class="missions">
+      <h2>오늘의 과제 ${claimable ? `<span class="ms-badge">${claimable}</span>` : ''}<small>자정에 새로 나와요</small></h2>
+      <ul>${missionRows}</ul>
+    </section>
     <div class="home-match">
       <div class="modetabs" role="tablist" aria-label="모드 선택">
         <button class="modetab ${!ranked && !friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="normal">일반전</button>
@@ -670,12 +697,12 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
       </div>
       ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : friendly ? lobbyPanelHTML(lobby) : normalPanel}
     </div>
-    <nav class="tabbar">
+    <nav class="tabbar v2">
+      <button data-action="shop"><span>🏮</span>상점${claimable ? '' : ''}</button>
       <button data-action="dex"><span>📖</span>인물록</button>
+      <button class="tb-center" data-action="match-scroll"><span>⚔️</span>대전</button>
       <button data-action="achv"><span>🏆</span>업적</button>
-      <button data-action="shop"><span>🏮</span>상점</button>
-      <button data-action="rules"><span>📜</span>룰</button>
-      <button data-action="options"><span>⚙</span>설정</button>
+      <button data-action="profile"><span>👤</span>내 정보</button>
     </nav>
   </div>`;
 }

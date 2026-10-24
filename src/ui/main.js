@@ -53,6 +53,8 @@ import { getPoints, bonusList } from '../core/engine.js?v=1792061648';
 import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792061648';
 import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792061648';
 import { afterRender as juiceAfterRender, myTurnBanner, resetJuice, haptic } from './juice.js?v=1792061648';
+import { loadMissions, missionRows, claimMission, recordGameForMissions } from '../meta/missions.js?v=1792061648';
+import { NEWS } from '../data/news.js?v=1792061648';
 import {
   browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult,
   loadProfile, recordNormalGame, recordRankedMatch, recordRankedLeave, rankedDisplay,
@@ -199,7 +201,8 @@ function render() {
   else {
     const profile = loadProfile(storage);
     const banMin = profile.ranked.queueBanUntil > Date.now() ? Math.ceil((profile.ranked.queueBanUntil - Date.now()) / 60000) : 0;
-    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby });
+    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby,
+      missions: missionRows(loadMissions(storage)), wallet: loadInventory(storage).wallet, news: NEWS });
     netNotice = '';
   }
   const prof = { error: profileError, name: pendingName ?? options.playerName, look: pendingLook || options.look, tab: lookTab, busy: profileBusy };
@@ -628,6 +631,8 @@ function finalizeMatch(won) {
   if (!curMatch || curMatch.recorded || !ctrl) return;
   curMatch.recorded = true;
   const mode = curMatch.mode;
+  // 오늘의 과제 진행 (모든 모드): 판 수·우승·영입·성장
+  recordGameForMissions(storage, { won, recruited: ctrl.me.tableau.length, evolved: ctrl.me.evolved.length });
   if (mode === 'normal') recordNormalGame(storage, won);
   if (mode !== 'ranked') { lastResult = { mode }; return; }
   const profile = loadProfile(storage);
@@ -723,6 +728,15 @@ document.addEventListener('click', (e) => {
   if (!['ball', 'confirm-balls', 'buy', 'reserve', 'reserve-deck', 'evolve', 'discard', 'confirm-discard'].includes(d.action)) sfx.click();
   switch (d.action) {
     case 'dex': dexOpen = true; break;
+    case 'mission-claim': {
+      const r = claimMission(storage, d.id);
+      if (r.ok) { sfx.catch(); haptic(20); }
+      break;
+    }
+    case 'match-scroll': // 하단 '대전' 탭: 일반·랭킹전은 바로 매칭, 친목전은 방 목록으로 스크롤
+      if (options.mode === 'friendly') { document.querySelector('.home-match')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (options.mode === 'ranked' && document.querySelector('.btn.bigstart.ranked:disabled')) { document.querySelector('.home-match')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      startQueue(options.queueSize); return;
     case 'dex-close': dexOpen = false; break;
     case 'mode': options.mode = ['ranked', 'friendly'].includes(d.mode) ? d.mode : 'normal'; saveOptions(storage, options); netNotice = ''; break;
     case 'shop': shopOpen = true; shopToast = ''; break;
