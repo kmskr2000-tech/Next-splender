@@ -52,7 +52,7 @@ import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=179206164
 import { getPoints, bonusList } from '../core/engine.js?v=1792061648';
 import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792061648';
 import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792061648';
-import { afterRender as juiceAfterRender, myTurnBanner, resetJuice } from './juice.js?v=1792061648';
+import { afterRender as juiceAfterRender, myTurnBanner, resetJuice, haptic } from './juice.js?v=1792061648';
 import {
   browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult,
   loadProfile, recordNormalGame, recordRankedMatch, recordRankedLeave, rankedDisplay,
@@ -834,7 +834,7 @@ document.addEventListener('click', (e) => {
       const card = ctrl.cardsById.get(d.card);
       const isMaster = card && (card.tier === 'rare' || card.tier === 'legend');
       ctrl.buy(d.card);
-      sfx.catch();
+      sfx.catch(); haptic(20); // 영입 손맛
       if (isMaster) setTimeout(() => sfx.masterBall(), 200);
       render();
       flyClone(snap.get('card:' + d.card), document.getElementById('actionbar'));
@@ -852,7 +852,7 @@ document.addEventListener('click', (e) => {
     case 'discard': ctrl.toggleDiscard(d.token); break;
     case 'undiscard': ctrl.undoDiscard(d.token); break;
     case 'confirm-discard': ctrl.confirmDiscard(); sfx.discard(); break;
-    case 'evolve': ctrl.evolve(d.card); sfx.evolve(); break;
+    case 'evolve': ctrl.evolve(d.card); sfx.evolve(); haptic([20, 40, 30]); break;
     case 'skip-evolve': ctrl.skipEvolve(); break;
     case 'pass': ctrl.pass(); break;
     default: return;

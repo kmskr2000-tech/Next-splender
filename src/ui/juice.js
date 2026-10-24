@@ -49,6 +49,12 @@ export function myTurnBanner() {
   const r = board ? board.getBoundingClientRect() : { top: 90, left: 0, width: innerWidth };
   const el = spawn('juice-banner', '<span>내 차례!</span>', REDUCED() ? 700 : 1300);
   el.style.top = `${Math.round(r.top + 14)}px`;
+  haptic(25);
+}
+
+/** 휴대폰 짧은 진동 (지원하는 기기만, 실패해도 무시) */
+export function haptic(ms = 15) {
+  try { navigator.vibrate?.(ms); } catch { /* 진동 미지원 */ }
 }
 
 function lastRoundToast() {
