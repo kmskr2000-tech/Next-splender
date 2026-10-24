@@ -1170,3 +1170,33 @@ body.on-result #achvtoast { top: auto; bottom: calc(96px + env(safe-area-inset-b
 .camp-slot.s0.empty { bottom: 96px; }
 .mode-card .tbadge { background: rgba(20,14,24,.6); border-color: rgba(255,236,190,.6); color: #FFF3DC; }
 .mode-card .tbadge .tb-name { color: #FFF3DC; }
+
+/* ============================================================
+   D27 살아 있는 내 캐릭터 (로비 화로 옆): 숨쉬기 · 몸 흔들림 · 눈 깜빡임 · 불빛 · 혼잣말 · 톡 치면 폴짝
+   ============================================================ */
+.camp { height: 230px; }
+.my-char { position: absolute; left: 50%; bottom: 30px; width: 192px; height: 192px; margin-left: -128px; z-index: 2; }
+.look-stand { position: absolute; inset: 0; display: block; }
+.ls-body { position: absolute; inset: 0; transform-origin: 50% 100%; animation: lsBreath 3.2s ease-in-out infinite, lsSway 6.4s ease-in-out infinite;
+  filter: drop-shadow(4px 0 0 rgba(255,160,70,.35)) drop-shadow(0 6px 0 rgba(0,0,0,.25)); }
+.ls-body img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.ls-blink { position: absolute; top: 50%; width: 10.94%; height: 9.4%; background: #FED4BB; transform: scaleY(0); transform-origin: 50% 0; animation: lsBlink 4.6s infinite; }
+.ls-blink::after { content: ''; position: absolute; left: 6%; right: 6%; top: 52%; height: 18%; background: #3A2A2A; border-radius: 2px; }
+.ls-blink.l { left: 32.8%; } .ls-blink.r { left: 56.25%; }
+@keyframes lsBreath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.03); } }
+@keyframes lsSway { 0%, 100% { rotate: -1.2deg; } 50% { rotate: 1.2deg; } }
+@keyframes lsBlink { 0%, 92%, 100% { transform: scaleY(0); } 94%, 97% { transform: scaleY(1); } }
+.my-shadow { position: absolute; left: 22%; right: 22%; bottom: -6px; height: 16px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent); animation: lsShadow 3.2s ease-in-out infinite; }
+@keyframes lsShadow { 50% { transform: scaleX(1.06); opacity: .85; } }
+.my-char.hop .ls-body { animation: lsHop .55s cubic-bezier(.3,1.6,.5,1), lsBreath 3.2s ease-in-out .55s infinite, lsSway 6.4s ease-in-out infinite; }
+@keyframes lsHop { 0% { transform: translateY(0) scale(1, 1); } 25% { transform: translateY(0) scale(1.08, .9); } 55% { transform: translateY(-26px) scale(.96, 1.06); } 100% { transform: translateY(0) scale(1, 1); } }
+.my-plate { position: absolute; left: 50%; bottom: 8px; margin-left: -32px; transform: translateX(-50%); z-index: 3; padding: 3px 12px; border-radius: 999px; background: rgba(20,14,24,.78); color: #FFF3DC; font-size: 12px; font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(227,177,48,.6); display: flex; align-items: center; gap: 6px; white-space: nowrap; pointer-events: none; }
+.my-plate .ttl { font-size: 10px; }
+.lobby-v3 .brazier { left: auto; right: 16%; margin-left: 0; bottom: 34px; }
+.lobby-v3 .sc-glow { left: 62%; }
+.my-say { position: absolute; left: 62%; top: 4px; z-index: 4; max-width: 170px; padding: 6px 10px; border-radius: 12px 12px 12px 3px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.3;
+  box-shadow: 0 3px 10px rgba(0,0,0,.3); white-space: nowrap; pointer-events: none; animation: sayPop .2s ease-out, sayOut .4s ease-in 2.6s forwards; }
+@media (prefers-reduced-motion: reduce) { .ls-body, .ls-blink, .my-shadow { animation: none; } }
+.my-say { left: 50%; top: -18px; transform: translateX(-62%); border-radius: 12px; }
+.my-say::after { content: ''; position: absolute; left: 50%; bottom: -10px; margin-left: -6px; border: 6px solid transparent; border-top-color: #fff; }

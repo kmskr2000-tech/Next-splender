@@ -745,6 +745,7 @@ document.addEventListener('click', (e) => {
       if (r.ok) { sfx.catch(); haptic(20); }
       break;
     }
+    case 'my-char': charReact(true); return;
     case 'mode-open': modeOpen = true; break;
     case 'mode-close': modeOpen = false; break;
     case 'missions': missionsOpen = true; break;
@@ -908,6 +909,29 @@ document.addEventListener('keydown', (e) => {
   const go = { profname: 'profile-save', lobbytitle: 'lobby-create-go', lobbypw: 'lobby-create-go', lobbypwin: 'lobby-pw-go' }[e.target?.id];
   if (go) document.querySelector(`[data-action="${go}"]`)?.click();
 });
+
+// ---------- 살아 있는 내 캐릭터: 가끔 혼잣말, 톡 치면 폴짝 + 한마디 (D27) ----------
+const CHAR_LINES = ['오늘도 보물 사냥!', '21점, 가자!', '♪ ~', '도깨비 방망이 어디 없나…', '엽전이 쌓인다~', '한 판 할까요?', '불 앞이 따뜻하네', '오늘 운이 좋을 것 같아!'];
+function charLine() {
+  const h = new Date().getHours();
+  const extra = [];
+  if (loadMissions(storage) && missionRows(loadMissions(storage)).some((m) => m.claimable)) extra.push('과제 보상 받아 가요!');
+  if (h < 6) extra.push('졸려… 💤'); else if (h < 11) extra.push('좋은 아침이에요!'); else if (h >= 21) extra.push('밤이 깊었네요');
+  const pool = [...CHAR_LINES, ...extra, ...extra];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function charReact(hop) {
+  const el = document.querySelector('.lobby-v3 .my-char');
+  if (!el) return;
+  if (hop) { el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop'); haptic(10); sfx.click(); }
+  document.querySelector('.lobby-v3 .my-say')?.remove();
+  const say = document.createElement('span');
+  say.className = 'my-say';
+  say.textContent = charLine();
+  el.parentElement.appendChild(say);
+  setTimeout(() => say.remove(), 3100);
+}
+setInterval(() => { if (!ctrl && !queue && document.visibilityState === 'visible' && !document.querySelector('#overlay .panel')) charReact(false); }, 9000);
 
 window.__render = render; // automated tests
 window.__chat = chat; // automated tests (screenshots without a server)

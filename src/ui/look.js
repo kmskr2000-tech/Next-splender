@@ -42,6 +42,23 @@ export function randomLook(rnd = Math.random) {
   return sanitizeLook({ hair: pick('hair'), hat: rnd() < 0.5 ? 'none' : pick('hat'), face: pick('face'), cloth: pick('cloth'), tint: pick('tint'), bg: pick('bg') });
 }
 
+function layersOf(l) {
+  const layer = (src, style = '') => `<img src="${DIR}/${src}.png" alt=""${style ? ` style="${style}"` : ''}>`;
+  return layer('base')
+    + (l.cloth !== 'base' ? layer(`cloth_${l.cloth}`, TINT[l.tint] ? `filter:${TINT[l.tint]}` : '') : '')
+    + (l.face !== 'base' ? layer(`face_${l.face}`) : '')
+    + (l.hair !== 'base' ? layer(`hair_${l.hair}`) : '')
+    + (l.hat !== 'none' ? layer(`hat_${l.hat}`) : '');
+}
+
+/** 로비용 '살아 있는' 내 캐릭터: 테두리 없이 크게 서서 숨쉬기·흔들림·눈 깜빡임 (D27).
+ *  깜빡임 덮개는 기본 몸체의 눈 위치(64px 기준 x21~27·x36~42, y32~37)에 피부색으로 덮는다. 눈을 바꾸는 표정은 제외. */
+export function lookStandHTML(look) {
+  const l = sanitizeLook(look);
+  const blink = ['base', 'brave', 'shock'].includes(l.face);
+  return `<span class="look-stand"><span class="ls-body">${layersOf(l)}${blink ? '<i class="ls-blink l"></i><i class="ls-blink r"></i>' : ''}</span></span>`;
+}
+
 /** Layered avatar. `cls` adds the usual .av size classes (sm/md/lg) and frame classes. */
 export function lookHTML(look, cls = '') {
   const l = sanitizeLook(look);

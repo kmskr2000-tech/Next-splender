@@ -12,7 +12,7 @@ import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog
 import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792846825';
 import { displayOf } from '../meta/rating.js?v=1792846825';
 import { SPRITE_BOX } from './spritebox.js?v=1792846825';
-import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792846825';
+import { LOOK_PARTS, lookHTML, lookStandHTML, sanitizeLook } from './look.js?v=1792846825';
 
 
 const ASSET = 'assets';
@@ -639,9 +639,6 @@ const MODE_INFO = {
   ranked: { name: '랭킹전', icon: '👑', cls: 'md-ranked' },
   friendly: { name: '친목전', icon: '🏮', cls: 'md-friendly' },
 };
-function partyOf(dex) {
-  return Object.entries(dex?.caught || {}).sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last).slice(0, 3).map(([id]) => id);
-}
 export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' }, missions = [], wallet = { yeopjeon: 0 }, news = [], newsSeen = [] }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
@@ -659,13 +656,6 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
   if (mode === 'ranked') modeBody = `<div class="mc-tier">${tierBadgeHTML(rankedDisp, { size: 'lg' })}</div><b class="mc-big">${rankedDisp.placing ? `${rankedDisp.progress}/${rankedDisp.of}` : rankedDisp.rp}</b><small>${rankedDisp.placing ? '배치고사' : `RP · ${esc(rankedDisp.tier.name)}`}</small>`;
   else if (mode === 'friendly') modeBody = `<b class="mc-big">${lobby.status === 'ok' ? lobby.rooms.length : '–'}</b><small>${lobby.status === 'offline' ? '온라인 연결 필요' : '열린 방'}</small>`;
   else modeBody = `<b class="mc-big">${size}<em>인</em></b><small>${options.fillBots ? '빈자리 봇 채움' : '사람만 대기'}</small>`;
-  // 화로 앞 대표 인물 (가장 많이 영입한 3명, 비면 출전 슬롯)
-  const party = partyOf(dex);
-  const slots = [0, 1, 2].map((i) => {
-    const id = party[i];
-    if (!id) return `<button class="camp-slot empty s${i}" data-action="dex"><span>＋</span><small>출전</small></button>`;
-    return `<button class="camp-slot s${i}" data-action="dex" aria-label="대표 인물"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></button>`;
-  }).join('');
   const sideL = news.map((n) => `<button class="si" data-action="news-open" data-id="${n.id}">
       <span class="si-ic ${n.cls}">${n.art ? `<img src="${pokeSrc(n.art)}" alt="">` : lookHTML(options.look, 'sm')}</span><small>${esc(n.kicker)}</small>${newsSeen.includes(n.id) ? '' : bang}</button>`).join('');
   const ctaLabel = mode === 'friendly' ? '방 목록' : lock ? '🔒 랭킹전 잠김' : mode === 'ranked' ? '랭킹전 시작' : '대전 시작';
@@ -695,7 +685,11 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
         ${modeBody}
         <span class="mc-change">모드 변경 ▸</span>
       </button>
-      <div class="camp">${slots}<i class="brazier"><i class="flame"></i><i class="flame f2"></i></i></div>
+      <div class="camp">
+        <button class="my-char" data-action="my-char" aria-label="내 캐릭터">${lookStandHTML(options.look)}<span class="my-shadow"></span></button>
+        <span class="my-plate" >${name}${title ? `<em class="ttl ${title.css}">${esc(title.text)}</em>` : ''}</span>
+        <i class="brazier"><i class="flame"></i><i class="flame f2"></i></i>
+      </div>
     </div>
     ${notice ? `<p class="notice3">${esc(notice)}</p>` : ''}
     <div class="feat3">
