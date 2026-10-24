@@ -1,18 +1,18 @@
 // Pure HTML-string renderers. Each takes the controller and returns markup; main.js owns the DOM.
 // All text interpolated here comes from our own card data / constants (no user input).
 
-import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792061648';
-import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792061648';
-import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792061648';
-import { dexSummary } from '../storage/store.js?v=1792061648';
-import { ACHIEVEMENTS } from '../data/achievements.js?v=1792061648';
-import { ROSTER, LINES } from '../data/roster.js?v=1792061648';
-import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792061648';
-import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792061648';
-import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792061648';
-import { displayOf } from '../meta/rating.js?v=1792061648';
-import { SPRITE_BOX } from './spritebox.js?v=1792061648';
-import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792061648';
+import { COLORS, MASTER, PHASES, TOKEN_KEYS } from '../core/constants.js?v=1792846825';
+import { getBonuses, getPoints, tokenCount, bonusList, isSpecial } from '../core/engine.js?v=1792846825';
+import { BALLS, TRAINERS, evoText, evolvesFrom } from './controller.js?v=1792846825';
+import { dexSummary } from '../storage/store.js?v=1792846825';
+import { ACHIEVEMENTS } from '../data/achievements.js?v=1792846825';
+import { ROSTER, LINES } from '../data/roster.js?v=1792846825';
+import { resolveCardSprite, avatarFrameClass, cardFrameClass, titleOf, owns, isEquipped } from '../meta/cosmetics.js?v=1792846825';
+import { CATALOG, CATEGORIES, itemById, isFree, itemName } from '../meta/catalog.js?v=1792846825';
+import { RANKED, SEASON_LABEL, RANKED_UNLOCK } from '../meta/config.js?v=1792846825';
+import { displayOf } from '../meta/rating.js?v=1792846825';
+import { SPRITE_BOX } from './spritebox.js?v=1792846825';
+import { LOOK_PARTS, lookHTML, sanitizeLook } from './look.js?v=1792846825';
 
 
 const ASSET = 'assets';
@@ -372,6 +372,13 @@ export function evolveFxHTML(from, to, owner = null) {
   </div>`;
 }
 
+/** 상대 성장 미니 알림: 전 단계 → 다음 단계 얼굴 + "성장!" (플레이어 줄 옆, 조작을 막지 않음) */
+export function evolveMiniHTML(from, to, seat) {
+  return `<div class="evo-mini" data-seat="${seat}" role="status" aria-live="polite">
+    <img class="em-from" src="${pokeSrc(from.id)}" alt=""><i>→</i><img class="em-to" src="${pokeSrc(to.id)}" alt="${to.name}"><b>성장!</b>
+  </div>`;
+}
+
 // ---------- sheet + overlays ----------
 
 function oppSheetHTML(p, ctrl) {
@@ -625,7 +632,7 @@ function rankedPanelHTML({ profile, gate, ban, rankedDisp }) {
     <button class="btn bigstart ranked" data-action="match" ${lock || ban ? 'disabled' : ''}>${lock ? '🔒 랭킹전 잠김' : '랭킹전 시작'}<small>4인 대전 · 시범(비공식)</small></button>`;
 }
 
-export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' } }) {
+export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' }, missions = [], wallet = { yeopjeon: 0 }, news = [] }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
   const name = esc(options.playerName || '도사');
@@ -634,21 +641,54 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
   const rankedDisp = displayOf(profile.ranked);
   const normalPanel = `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
         `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
-      <button class="btn bigstart" data-action="match">매칭 시작<small>${size}인 대전 · 랭크 점수 변동 없음</small></button>
+      <button class="btn bigstart" data-action="match">대전 시작<small>${size}인 일반전 · 랭크 점수 변동 없음</small></button>
       <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span>
         <span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>`;
-  return `<div class="overlay screen home">
-    <div class="home-top">
-      <button class="profile-chip px" data-action="profile">${avatarHTML(options.avatar, 0, { me: true, cls: 'sm' })}
-        <span><b>${name}</b>${myTitleHTML()}<small>${g.played}판 ${g.won}승</small></span>${tierBadgeHTML(rankedDisp, { size: 'sm' })}</button>
-      <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
+  const title = titleOf(myEquipped);
+  const claimable = missions.filter((m) => m.claimable).length;
+  const banners = news.map((n) => `<button class="nb ${n.cls}" data-action="${n.action}" ${n.mode ? `data-mode="${n.mode}"` : ''}>
+      <span class="nb-txt"><small>${esc(n.kicker)}</small><b>${esc(n.title)}</b><em>${esc(n.body)}</em></span>
+      ${n.art ? `<img class="nb-art" src="${pokeSrc(n.art)}" alt="">` : lookHTML(options.look, 'md nb-look')}
+    </button>`).join('');
+  const missionRows = missions.map((m) => `<li class="ms ${m.claimed ? 'claimed' : m.claimable ? 'ready' : ''}">
+      <span class="ms-ic">${m.icon}</span>
+      <span class="ms-body"><b>${esc(m.label)}</b><span class="ms-bar"><i style="width:${Math.round((m.cur / m.need) * 100)}%"></i></span><small>${m.cur}/${m.need}</small></span>
+      ${m.claimed ? '<span class="ms-done">완료</span>' : m.claimable ? `<button class="btn primary sm" data-action="mission-claim" data-id="${m.id}">엽전 ${m.reward}</button>` : `<span class="ms-reward">엽전 ${m.reward}</span>`}
+    </li>`).join('');
+  return `<div class="overlay screen home lobby-v2">
+    <div class="hud">
+      <button class="hud-me" data-action="profile" aria-label="프로필">
+        ${avatarHTML(options.avatar, 0, { me: true, cls: 'md' })}
+        <span class="hud-txt"><b>${name}</b><small>${title ? esc(title.text) : '새내기 도사'} · ${g.played}판 ${g.won}승</small></span>
+        ${tierBadgeHTML(rankedDisp, { size: 'sm' })}
+      </button>
+      <div class="hud-right">
+        <button class="hud-coin" data-action="shop" aria-label="엽전 · 상점"><i>🪙</i><b>${wallet.yeopjeon}</b></button>
+        <button class="iconbtn" data-action="rules" aria-label="룰 설명">?</button>
+        <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
+      </div>
     </div>
     <div class="home-hero">
-      <div class="title big">조선 스플렌더<small>K-SPLENDOR · DOT EDITION</small></div>
-      <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-013', 't3-011'].map((id, i) => `<span class="hc ${i === 1 ? 'mid' : ''}"><img src="${pokeSrc(id)}" alt=""></span>`).join('')}</div>
-      <p class="hero-sub">보물을 모아 21점을 먼저 채워라!</p>
+      <h1 class="logo" aria-label="조선 스플렌더">
+        <span class="logo-kicker">K · SPLENDOR</span>
+        <span class="logo-main"><span class="lm-a">조선</span><span class="lm-b">스플렌더</span></span>
+        <span class="logo-seal" aria-hidden="true">寶</span>
+      </h1>
+      <div class="hero-stage">
+        <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-011'].map((id) => `<span class="hc side"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></span>`).join('')}</div>
+        <button class="hero-me" data-action="profile" aria-label="내 캐릭터 꾸미기">
+          ${avatarHTML(options.avatar, 0, { me: true, cls: 'xl' })}
+          <span class="hero-plate">${name}${title ? `<em class="ttl ${title.css}">${esc(title.text)}</em>` : ''}</span>
+          <span class="hero-edit">꾸미기</span>
+        </button>
+      </div>
     </div>
     ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
+    <div class="news-row" aria-label="소식">${banners}</div>
+    <section class="missions">
+      <h2>오늘의 과제 ${claimable ? `<span class="ms-badge">${claimable}</span>` : ''}<small>자정에 새로 나와요</small></h2>
+      <ul>${missionRows}</ul>
+    </section>
     <div class="home-match">
       <div class="modetabs" role="tablist" aria-label="모드 선택">
         <button class="modetab ${!ranked && !friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="normal">일반전</button>
@@ -657,12 +697,12 @@ export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, si
       </div>
       ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : friendly ? lobbyPanelHTML(lobby) : normalPanel}
     </div>
-    <nav class="tabbar">
+    <nav class="tabbar v2">
+      <button data-action="shop"><span>🏮</span>상점${claimable ? '' : ''}</button>
       <button data-action="dex"><span>📖</span>인물록</button>
+      <button class="tb-center" data-action="match-scroll"><span>⚔️</span>대전</button>
       <button data-action="achv"><span>🏆</span>업적</button>
-      <button data-action="shop"><span>🏮</span>상점</button>
-      <button data-action="rules"><span>📜</span>룰</button>
-      <button data-action="options"><span>⚙</span>설정</button>
+      <button data-action="profile"><span>👤</span>내 정보</button>
     </nav>
   </div>`;
 }
@@ -691,7 +731,9 @@ export function queueHTML(v) {
   }
   const tag = v.ranked ? `<div class="modetag ranked">랭킹전 · ${SEASON_LABEL}</div>`
     : v.isRoom ? `<div class="modetag">친목전${v.locked ? ' · 🔒 비밀방' : ''} · 비랭크</div>` : '<div class="modetag">일반전 · 랭크 점수 변동 없음</div>';
+  const tip = QUEUE_TIPS[Math.floor(Date.now() / 4500) % QUEUE_TIPS.length];
   return `<div class="overlay screen queue">
+    <div class="q-seal" aria-hidden="true"><span>寶</span></div>
     <div class="title big">${esc(v.title)}<small>${have}/${v.size}명</small></div>
     ${tag}
     ${v.ranked && v.tierDisp ? `<div class="qtier">${tierBadgeHTML(v.tierDisp)}</div>` : ''}
@@ -703,8 +745,18 @@ export function queueHTML(v) {
       ${v.host && !v.starting && !v.ranked ? `<button class="btn primary" data-action="room-start" ${have < 2 && !v.fillBots ? 'disabled' : ''}>${have < v.size ? '봇 채우고 시작' : '게임 시작'}</button>` : ''}
       <button class="btn ghost" data-action="queue-cancel">${v.isRoom ? '방 나가기' : '매칭 취소'}</button>
     </div>
+    <p class="q-tip"><b>TIP</b> ${tip}</p>
   </div>`;
 }
+// 대기 중 돌아가며 보여 주는 한 줄 팁
+const QUEUE_TIPS = [
+  '같은 색 보너스를 모으면 비싼 인물도 공짜로 영입할 수 있어요.',
+  '희귀·전설 인물은 마패가 꼭 필요해요. 찜하면 마패를 받아요.',
+  '전 단계 인물을 가지고 있으면 카드 아래가 초록 「← 내 ○○」로 바뀌어요.',
+  '보물은 10개까지! 넘치면 돌려줘야 하니 미리 계획하세요.',
+  '상대 얼굴 옆 숫자는 가진 보물, 초록 +n은 보너스예요.',
+  '··· 버튼으로 이모티콘을 보내 인사해 보세요!',
+];
 
 // ---------- 친목전 로비 ----------
 function lobbyPanelHTML(lobby) {
@@ -837,25 +889,38 @@ export function leaveConfirmHTML({ voidLeave }) {
   </div></div>`;
 }
 
+// 결과 화면 (D24): 어두운 옻칠 배경 + 내 순위 배너 + 메달 순위표. 우승이면 금빛 꽃가루.
+const RANK_TITLE = { 1: '우승!', 2: '준우승', 3: '3위', 4: '4위' };
 export function endHTML(ctrl, res = null) {
   const s = ctrl.state;
-  const rows = s.ranking.map((r) => {
+  const myRow = s.ranking.find((r) => r.player === ctrl.human);
+  const myRank = myRow?.rank;
+  const win = myRank === 1;
+  const rows = s.ranking.map((r, i) => {
     const p = s.players[r.player];
     const isMe = p.id === ctrl.human;
-    return `<tr class="${r.rank === 1 ? 'win' : ''} ${isMe ? 'me' : ''}"><td class="rk">${r.rank}</td>
-      <td class="who">${avatarHTML(p.name, p.id, { me: isMe, cls: 'sm' })}<span>${p.isAI ? (ctrl.simUsers ? '<em class="botmark sim">시뮬 유저</em> ' : 'BOT ') : ''}${esc(p.name)}</span></td>
-      <td>${r.points}점</td><td>성장 ${r.evolutions}</td><td>${r.pokemon}명</td></tr>`;
+    const tag = p.isAI ? (ctrl.simUsers ? '<em class="botmark sim">시뮬</em>' : '<em class="botmark">BOT</em>') : '';
+    return `<li class="rs-row m${r.rank} ${isMe ? 'me' : ''}" style="--i:${i}">
+      <span class="rs-medal">${r.rank}</span>
+      ${avatarHTML(p.name, p.id, { me: isMe, cls: 'md' })}
+      <span class="rs-who"><b>${esc(p.name)}</b>${tag}${isMe ? '<em class="memark">나</em>' : ''}<small>성장 ${r.evolutions} · 인물 ${r.pokemon}명</small></span>
+      <span class="rs-pts"><b>${r.points}</b><small>점</small></span>
+    </li>`;
   }).join('');
-  const myRank = s.ranking.find((r) => r.player === ctrl.human)?.rank;
   const again = res?.mode === 'ranked' ? '다시 랭킹전' : '다시 매칭';
-  return `<div class="overlay screen result"><div class="panel">
-    <div class="title big">${myRank === 1 ? '우승!' : `${myRank}위`}<small>${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : '최종 순위'}</small></div>
-    <table class="rank">${rows}</table>
+  const confetti = win ? `<div class="rs-confetti" aria-hidden="true">${Array.from({ length: 26 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--d:${(i % 7) * 0.18}s;--c:${['#E3B130', '#C8402F', '#2E9C8A', '#F1EEE4', '#2E5FA8'][i % 5]}"></i>`).join('')}</div>` : '';
+  return `<div class="overlay screen result ${win ? 'won' : ''}">${confetti}
+    <div class="rs-head">
+      <div class="rs-ribbon"><span>${RANK_TITLE[myRank] || `${myRank}위`}</span></div>
+      <div class="rs-me">${avatarHTML(ctrl.me.name, ctrl.human, { me: true, cls: 'lg' })}<span class="rs-score"><b>${myRow?.points ?? 0}</b>점</span></div>
+      <p class="rs-sub">${s.stalled ? '아무도 행동할 수 없어 종료됐어요' : win ? '21점 고지에 가장 먼저 올랐어요!' : '다음 판엔 꼭 우승해요!'}</p>
+    </div>
+    <ol class="rs-list">${rows}</ol>
     ${rpResultHTML(res)}
-    <p class="sheet-p">동점은 성장 횟수가 많은 쪽 → 영입한 인물 수가 적은 쪽이 이겨요.</p>
-    <div class="btnrow"><button class="btn ghost" data-action="restart">홈으로</button>
+    <p class="rs-note">동점은 성장 횟수가 많은 쪽 → 영입한 인물 수가 적은 쪽이 이겨요.</p>
+    <div class="btnrow rs-btns"><button class="btn ghost" data-action="restart">홈으로</button>
     <button class="btn primary" data-action="rematch">${again}</button></div>
-  </div></div>`;
+  </div>`;
 }
 
 // ---------- shop (skeleton: free claim + equip only; paid items show "준비 중") ----------

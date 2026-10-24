@@ -41,25 +41,28 @@ function showInAppGuide() {
 }
 showInAppGuide();
 
-import { CARDS } from '../data/cards.js?v=1792061648';
-import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792061648';
-import { createController, TRAINERS } from './controller.js?v=1792061648';
-import * as V from './view.js?v=1792061648';
-import { createChatWidget } from './chat.js?v=1792061648';
-import { randomLook, sanitizeLook, encodeLook, decodeLook } from './look.js?v=1792061648';
-import { NetSession } from '../net/session.js?v=1792061648';
-import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792061648';
-import { getPoints, bonusList } from '../core/engine.js?v=1792061648';
-import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792061648';
-import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792061648';
+import { CARDS } from '../data/cards.js?v=1792846825';
+import { ACHIEVEMENTS, checkAchievements } from '../data/achievements.js?v=1792846825';
+import { createController, TRAINERS } from './controller.js?v=1792846825';
+import * as V from './view.js?v=1792846825';
+import { createChatWidget } from './chat.js?v=1792846825';
+import { randomLook, sanitizeLook, encodeLook, decodeLook } from './look.js?v=1792846825';
+import { NetSession } from '../net/session.js?v=1792846825';
+import { listRooms, watchRooms, claimName } from '../net/fireroom.js?v=1792846825';
+import { getPoints, bonusList } from '../core/engine.js?v=1792846825';
+import { startBGM, stopBGM, unlockAudio } from '../audio/bgm.js?v=1792846825';
+import { sfx, setSFXEnabled } from '../audio/sfx.js?v=1792846825';
+import { afterRender as juiceAfterRender, myTurnBanner, resetJuice, haptic } from './juice.js?v=1792846825';
+import { loadMissions, missionRows, claimMission, recordGameForMissions } from '../meta/missions.js?v=1792846825';
+import { NEWS } from '../data/news.js?v=1792846825';
 import {
   browserStorage, loadDex, recordCatch, recordGame, loadOptions, saveOptions, loadAchv, unlockAchv, recordResult,
   loadProfile, recordNormalGame, recordRankedMatch, recordRankedLeave, rankedDisplay,
   loadInventory, claimFreeItem, equipOwnedItem,
-} from '../storage/store.js?v=1792061648';
-import { resolveMatch, isEarlyLeave } from '../meta/rating.js?v=1792061648';
-import { RANKED, RANKED_UNLOCK, rankedUnlockStatus } from '../meta/config.js?v=1792061648';
-import { itemById, itemName } from '../meta/catalog.js?v=1792061648';
+} from '../storage/store.js?v=1792846825';
+import { resolveMatch, isEarlyLeave } from '../meta/rating.js?v=1792846825';
+import { RANKED, RANKED_UNLOCK, rankedUnlockStatus } from '../meta/config.js?v=1792846825';
+import { itemById, itemName } from '../meta/catalog.js?v=1792846825';
 
 // App flow: home (lobby) -> matching queue / friend room -> in-game -> result -> home.
 // There is no solo mode: bots exist only as seat fillers when a queue times out.
@@ -170,6 +173,8 @@ function render() {
   // Game end SFX (once)
   if (ctrl && ctrl.finished && !lastFinished) {
     lastFinished = true;
+    // 결과 화면 위에 성장 연출·미니 알림이 남지 않게 정리
+    document.querySelectorAll('.evofx, .evo-mini').forEach((el) => el.remove());
     const won = ctrl.state.ranking && ctrl.state.ranking[0]?.player === ctrl.human;
     if (won) sfx.win(); else sfx.lose();
     finalizeMatch(won);
@@ -177,7 +182,7 @@ function render() {
     lastFinished = false;
   }
   if (ctrl && !ctrl.finished && ctrl.isHumanTurn && lastTurnPlayer !== ctrl.game.current) {
-    if (lastTurnPlayer !== -1) sfx.yourTurn();
+    if (lastTurnPlayer !== -1) { sfx.yourTurn(); myTurnBanner(); } // 내 차례 배너
   }
   lastTurnPlayer = ctrl ? ctrl.game.current : -1;
 
@@ -187,6 +192,7 @@ function render() {
   checkNetFail();
   { const ab = $('actionbar'); if (ab && ctrl) document.documentElement.style.setProperty('--dockh', ab.offsetHeight + 'px'); }
   syncLobbyWatch();
+  document.body.classList.toggle('on-result', !!(ctrl && ctrl.finished)); // 결과 화면 전용 배치(업적 알림 위치)
   // 온라인 상대의 꾸민 모습 (오프라인/AI 게임은 초상화)
   V.setSeatLooks(net?.looks?.length ? net.looks.map((c) => (c ? decodeLook(c) : null)) : null);
   let overlay;
@@ -195,7 +201,8 @@ function render() {
   else {
     const profile = loadProfile(storage);
     const banMin = profile.ranked.queueBanUntil > Date.now() ? Math.ceil((profile.ranked.queueBanUntil - Date.now()) / 60000) : 0;
-    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby });
+    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby,
+      missions: missionRows(loadMissions(storage)), wallet: loadInventory(storage).wallet, news: NEWS });
     netNotice = '';
   }
   const prof = { error: profileError, name: pendingName ?? options.playerName, look: pendingLook || options.look, tab: lookTab, busy: profileBusy };
@@ -212,6 +219,7 @@ function render() {
   // Don't clobber a half-typed input on the home/join screens with an identical re-render.
   setHTML('overlay', overlay);
   renderChat();
+  juiceAfterRender(ctrl); // 점수/토큰 범프, +N 팝업, 마지막 라운드 알림
   scheduleAI();
 }
 
@@ -318,14 +326,27 @@ let evoFxTimer = 0;
 function showEvolveFx(fromId, toId, player) {
   const from = cardsById.get(fromId), to = cardsById.get(toId);
   if (!from || !to) return;
+  const others = ctrl && player != null && player !== ctrl.human;
+  if (others) { showEvolveMini(from, to, player); return; }
   document.querySelector('.evofx')?.remove();
-  // 내 성장이 아니면 누구의 성장인지 이름을 붙인다
-  const owner = ctrl && player != null && player !== ctrl.human ? ctrl.game.players[player]?.name : null;
-  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to, owner));
-  if (owner) sfx.evolve(); // 내 성장은 버튼을 누를 때 이미 소리가 난다
+  document.body.insertAdjacentHTML('beforeend', V.evolveFxHTML(from, to));
   const el = document.body.lastElementChild;
   clearTimeout(evoFxTimer);
   evoFxTimer = setTimeout(() => el.remove(), 2900);
+}
+
+// 상대의 성장은 화면을 가리지 않게 오른쪽 플레이어 줄 그 사람 얼굴 옆에 작게 잠깐 보여 준다
+function showEvolveMini(from, to, player) {
+  const anchor = document.querySelector(`.rail-item[data-id="${player}"]`);
+  if (!anchor) return;
+  document.querySelector(`.evo-mini[data-seat="${player}"]`)?.remove();
+  const r = anchor.getBoundingClientRect();
+  document.body.insertAdjacentHTML('beforeend', V.evolveMiniHTML(from, to, player));
+  const el = document.body.lastElementChild;
+  el.style.right = `${window.innerWidth - r.left + 6}px`;
+  el.style.top = `${r.top + r.height / 2}px`;
+  sfx.evolve();
+  setTimeout(() => el.remove(), 2200);
 }
 
 const hooks = {
@@ -370,6 +391,7 @@ function enterGame(c) {
   queue = null;
   localTimer.key = '';
   resetCache();
+  resetJuice(); // 이전 게임의 연출 상태 초기화
   window.__ctrl = ctrl; // debugging / automated tests
   if (options.bgm) startBGM('main');
   render();
@@ -609,6 +631,8 @@ function finalizeMatch(won) {
   if (!curMatch || curMatch.recorded || !ctrl) return;
   curMatch.recorded = true;
   const mode = curMatch.mode;
+  // 오늘의 과제 진행 (모든 모드): 판 수·우승·영입·성장
+  recordGameForMissions(storage, { won, recruited: ctrl.me.tableau.length, evolved: ctrl.me.evolved.length });
   if (mode === 'normal') recordNormalGame(storage, won);
   if (mode !== 'ranked') { lastResult = { mode }; return; }
   const profile = loadProfile(storage);
@@ -700,8 +724,19 @@ document.addEventListener('click', (e) => {
   unlockAudio();
   if (options.bgm && !ctrl) startBGM('calm');
   const d = el.dataset;
+  // 메뉴·탭 버튼 공통 클릭음 (게임 행동은 각자 고유 효과음이 있어 제외)
+  if (!['ball', 'confirm-balls', 'buy', 'reserve', 'reserve-deck', 'evolve', 'discard', 'confirm-discard'].includes(d.action)) sfx.click();
   switch (d.action) {
     case 'dex': dexOpen = true; break;
+    case 'mission-claim': {
+      const r = claimMission(storage, d.id);
+      if (r.ok) { sfx.catch(); haptic(20); }
+      break;
+    }
+    case 'match-scroll': // 하단 '대전' 탭: 일반·랭킹전은 바로 매칭, 친목전은 방 목록으로 스크롤
+      if (options.mode === 'friendly') { document.querySelector('.home-match')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (options.mode === 'ranked' && document.querySelector('.btn.bigstart.ranked:disabled')) { document.querySelector('.home-match')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      startQueue(options.queueSize); return;
     case 'dex-close': dexOpen = false; break;
     case 'mode': options.mode = ['ranked', 'friendly'].includes(d.mode) ? d.mode : 'normal'; saveOptions(storage, options); netNotice = ''; break;
     case 'shop': shopOpen = true; shopToast = ''; break;
@@ -813,7 +848,7 @@ document.addEventListener('click', (e) => {
       const card = ctrl.cardsById.get(d.card);
       const isMaster = card && (card.tier === 'rare' || card.tier === 'legend');
       ctrl.buy(d.card);
-      sfx.catch();
+      sfx.catch(); haptic(20); // 영입 손맛
       if (isMaster) setTimeout(() => sfx.masterBall(), 200);
       render();
       flyClone(snap.get('card:' + d.card), document.getElementById('actionbar'));
@@ -831,7 +866,7 @@ document.addEventListener('click', (e) => {
     case 'discard': ctrl.toggleDiscard(d.token); break;
     case 'undiscard': ctrl.undoDiscard(d.token); break;
     case 'confirm-discard': ctrl.confirmDiscard(); sfx.discard(); break;
-    case 'evolve': ctrl.evolve(d.card); sfx.evolve(); break;
+    case 'evolve': ctrl.evolve(d.card); sfx.evolve(); haptic([20, 40, 30]); break;
     case 'skip-evolve': ctrl.skipEvolve(); break;
     case 'pass': ctrl.pass(); break;
     default: return;
@@ -850,3 +885,13 @@ window.__render = render; // automated tests
 window.__chat = chat; // automated tests (screenshots without a server)
 render();
 registerExistingName();
+
+// 시작 화면: 그림이 다 불러와지면(최소 0.6초) 걷어낸다. 늦어도 4초 뒤에는 무조건 걷는다.
+{
+  const sp = document.getElementById('splash');
+  const t0 = performance.now();
+  const hide = () => { if (!sp || sp.classList.contains('hide')) return; sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); };
+  const later = () => setTimeout(hide, Math.max(0, 600 - (performance.now() - t0)));
+  if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
+  setTimeout(hide, 4000);
+}
