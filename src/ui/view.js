@@ -632,79 +632,141 @@ function rankedPanelHTML({ profile, gate, ban, rankedDisp }) {
     <button class="btn bigstart ranked" data-action="match" ${lock || ban ? 'disabled' : ''}>${lock ? '🔒 랭킹전 잠김' : '랭킹전 시작'}<small>4인 대전 · 시범(비공식)</small></button>`;
 }
 
-export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' }, missions = [], wallet = { yeopjeon: 0 }, news = [] }) {
+// 로비 v3 (D26): 스크롤 없는 한 화면 장면형 로비. 레퍼런스 = 모바일 RPG 캠프 로비
+// (상단 재화 HUD · 좌 소식/우 메뉴 아이콘 기둥 · 가운데 모드 카드 · 화로 앞 대표 인물 · 기능 줄 · 큰 대전 버튼 · 센터 전투 탭)
+const MODE_INFO = {
+  normal: { name: '일반전', icon: '⚔️', cls: 'md-normal' },
+  ranked: { name: '랭킹전', icon: '👑', cls: 'md-ranked' },
+  friendly: { name: '친목전', icon: '🏮', cls: 'md-friendly' },
+};
+function partyOf(dex) {
+  return Object.entries(dex?.caught || {}).sort((a, b) => b[1].n - a[1].n || b[1].last - a[1].last).slice(0, 3).map(([id]) => id);
+}
+export function homeHTML({ options, dex, notice = '', profile, gate, ban = 0, sim = false, lobby = { rooms: [], status: 'idle' }, missions = [], wallet = { yeopjeon: 0 }, news = [], newsSeen = [] }) {
   const g = dex?.games || { played: 0, won: 0 };
   const size = options.queueSize;
   const name = esc(options.playerName || '도사');
-  const ranked = options.mode === 'ranked';
-  const friendly = options.mode === 'friendly';
+  const mode = options.mode === 'ranked' || options.mode === 'friendly' ? options.mode : 'normal';
   const rankedDisp = displayOf(profile.ranked);
-  const normalPanel = `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) =>
-        `<button class="segbtn ${size === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
-      <button class="btn bigstart" data-action="match">대전 시작<small>${size}인 일반전 · 랭크 점수 변동 없음</small></button>
-      <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span>
-        <span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>`;
   const title = titleOf(myEquipped);
   const claimable = missions.filter((m) => m.claimable).length;
-  const banners = news.map((n) => `<button class="nb ${n.cls}" data-action="${n.action}" ${n.mode ? `data-mode="${n.mode}"` : ''}>
-      <span class="nb-txt"><small>${esc(n.kicker)}</small><b>${esc(n.title)}</b><em>${esc(n.body)}</em></span>
-      ${n.art ? `<img class="nb-art" src="${pokeSrc(n.art)}" alt="">` : lookHTML(options.look, 'md nb-look')}
-    </button>`).join('');
-  const missionRows = missions.map((m) => `<li class="ms ${m.claimed ? 'claimed' : m.claimable ? 'ready' : ''}">
+  const done = missions.filter((m) => m.claimed).length;
+  const lock = mode === 'ranked' && (!gate.unlocked || ban);
+  const bang = '<i class="bang">!</i>';
+  // 가운데 모드 카드
+  const mi = MODE_INFO[mode];
+  let modeBody;
+  if (mode === 'ranked') modeBody = `<div class="mc-tier">${tierBadgeHTML(rankedDisp, { size: 'lg' })}</div><b class="mc-big">${rankedDisp.placing ? `${rankedDisp.progress}/${rankedDisp.of}` : rankedDisp.rp}</b><small>${rankedDisp.placing ? '배치고사' : `RP · ${esc(rankedDisp.tier.name)}`}</small>`;
+  else if (mode === 'friendly') modeBody = `<b class="mc-big">${lobby.status === 'ok' ? lobby.rooms.length : '–'}</b><small>${lobby.status === 'offline' ? '온라인 연결 필요' : '열린 방'}</small>`;
+  else modeBody = `<b class="mc-big">${size}<em>인</em></b><small>${options.fillBots ? '빈자리 봇 채움' : '사람만 대기'}</small>`;
+  // 화로 앞 대표 인물 (가장 많이 영입한 3명, 비면 출전 슬롯)
+  const party = partyOf(dex);
+  const slots = [0, 1, 2].map((i) => {
+    const id = party[i];
+    if (!id) return `<button class="camp-slot empty s${i}" data-action="dex"><span>＋</span><small>출전</small></button>`;
+    return `<button class="camp-slot s${i}" data-action="dex" aria-label="대표 인물"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></button>`;
+  }).join('');
+  const sideL = news.map((n) => `<button class="si" data-action="news-open" data-id="${n.id}">
+      <span class="si-ic ${n.cls}">${n.art ? `<img src="${pokeSrc(n.art)}" alt="">` : lookHTML(options.look, 'sm')}</span><small>${esc(n.kicker)}</small>${newsSeen.includes(n.id) ? '' : bang}</button>`).join('');
+  const ctaLabel = mode === 'friendly' ? '방 목록' : lock ? '🔒 랭킹전 잠김' : mode === 'ranked' ? '랭킹전 시작' : '대전 시작';
+  const ctaSub = mode === 'friendly' ? '친구와 방 만들기 · 들어가기' : mode === 'ranked' ? '4인 · 시범 시즌 0' : `${size}인 일반전`;
+  return `<div class="overlay screen home lobby-v3">
+    <div class="scene" aria-hidden="true"><i class="sc-moon"></i><i class="sc-far"></i><i class="sc-roof"></i><i class="sc-near"></i><i class="sc-glow"></i></div>
+    <div class="hud3">
+      <button class="hud3-me" data-action="profile" aria-label="프로필">
+        ${avatarHTML(options.avatar, 0, { me: true, cls: 'md' })}<span class="hud3-lv">${g.played}</span>
+        <span class="hud3-txt"><b>${name}</b><small>${title ? esc(title.text) : `${g.won}승 · 새내기 도사`}</small></span>
+      </button>
+      <span class="hud3-cur" title="엽전"><i>🪙</i><b>${wallet.yeopjeon}</b><button data-action="shop" aria-label="상점">+</button></span>
+      <span class="hud3-cur tier">${tierBadgeHTML(rankedDisp, { size: 'sm' })}</span>
+    </div>
+    <div class="stage3">
+      <div class="side3 left">${sideL}</div>
+      <div class="side3 right">
+        <button class="si" data-action="missions"><span class="si-ic">📜</span><small>과제</small>${claimable ? bang : ''}</button>
+        <button class="si" data-action="dex"><span class="si-ic">📖</span><small>인물록</small></button>
+        <button class="si" data-action="achv"><span class="si-ic">🏆</span><small>업적</small></button>
+        <button class="si" data-action="rules"><span class="si-ic">❔</span><small>룰</small></button>
+        <button class="si" data-action="options"><span class="si-ic">⚙️</span><small>설정</small></button>
+      </div>
+      <button class="mode-card ${mi.cls}" data-action="mode-open" aria-label="모드 선택">
+        <span class="mc-icon">${mi.icon}</span>
+        <span class="mc-name">${mi.name}</span>
+        ${modeBody}
+        <span class="mc-change">모드 변경 ▸</span>
+      </button>
+      <div class="camp">${slots}<i class="brazier"><i class="flame"></i><i class="flame f2"></i></i></div>
+    </div>
+    ${notice ? `<p class="notice3">${esc(notice)}</p>` : ''}
+    <div class="feat3">
+      <button class="ft" data-action="missions"><span class="ft-ic">📜</span><b>오늘의 과제</b><small>${done}/${missions.length}</small>${claimable ? bang : ''}</button>
+      <button class="ft" data-action="profile"><span class="ft-ic">${lookHTML(options.look, 'sm')}</span><b>꾸미기</b></button>
+      <button class="ft" data-action="shop"><span class="ft-ic">🏮</span><b>상점</b></button>
+    </div>
+    <div class="cta3">
+      <button class="side-btn" data-action="mode" data-mode="friendly"><span>🏮</span>친목전</button>
+      <button class="btn bigstart cta-main ${mode === 'ranked' ? 'ranked' : ''}" data-action="${mode === 'friendly' ? 'rooms-open' : 'match'}" ${lock ? 'disabled' : ''}>${ctaLabel}<small>${ctaSub}</small></button>
+      <button class="side-btn" data-action="mode-open"><span>🗺️</span>모드</button>
+    </div>
+    <nav class="tabbar v3">
+      <button data-action="shop"><span>🏮</span>상점</button>
+      <button data-action="profile"><span>👘</span>꾸미기</button>
+      <button class="tb-center" data-action="${mode === 'friendly' ? 'rooms-open' : 'match'}" ${lock ? 'disabled' : ''}><span>⚔️</span>전투</button>
+      <button data-action="dex"><span>📖</span>인물록</button>
+      <button data-action="achv"><span>🏆</span>업적</button>
+    </nav>
+  </div>`;
+}
+
+/** 모드 선택 시트: 일반/랭킹/친목 + 일반전 인원·봇 채움, 랭킹전 안내 */
+export function modeSheetHTML({ options, profile, gate, ban = 0 }) {
+  const mode = options.mode === 'ranked' || options.mode === 'friendly' ? options.mode : 'normal';
+  const rankedDisp = displayOf(profile.ranked);
+  const card = (m, desc) => `<button class="mode-opt ${MODE_INFO[m].cls} ${mode === m ? 'sel' : ''}" data-action="mode" data-mode="${m}">
+      <span class="mo-ic">${MODE_INFO[m].icon}</span><span class="mo-t"><b>${MODE_INFO[m].name}${m === 'ranked' && !gate.unlocked ? ' 🔒' : ''}</b><small>${desc}</small></span></button>`;
+  const extra = mode === 'normal'
+    ? `<div class="seg" role="group" aria-label="인원 선택">${[2, 3, 4].map((n) => `<button class="segbtn ${options.queueSize === n ? 'sel' : ''}" data-action="queue-size" data-n="${n}">${n}인</button>`).join('')}</div>
+       <button class="optrow slim" data-action="toggle-fill"><span>정원 미달 시 봇으로 자리 채움</span><span class="toggle ${options.fillBots ? 'on' : ''}">${options.fillBots ? '켬' : '끔'}</span></button>`
+    : mode === 'ranked' ? rankedPanelHTML({ profile, gate, ban, rankedDisp }).replace(/<button class="btn bigstart[\s\S]*$/, '') : '<p class="sheet-p">방 제목·인원·비밀번호를 정해 친구와 함께해요. 랭크 점수는 바뀌지 않아요.</p>';
+  return `<div class="overlay"><div class="panel modepanel">
+    <div class="title big">모드 선택</div>
+    <div class="mode-opts">${card('normal', '빠른 매칭 · 2~4인')}${card('ranked', '4인 · 품계·RP 변동')}${card('friendly', '방 만들기 · 비밀번호')}</div>
+    <div class="mode-extra">${extra}</div>
+    <div class="btnrow"><button class="btn primary" data-action="mode-close">확인</button></div>
+  </div></div>`;
+}
+
+/** 오늘의 과제 창 */
+export function missionsHTML(missions) {
+  const rows = missions.map((m) => `<li class="ms ${m.claimed ? 'claimed' : m.claimable ? 'ready' : ''}">
       <span class="ms-ic">${m.icon}</span>
       <span class="ms-body"><b>${esc(m.label)}</b><span class="ms-bar"><i style="width:${Math.round((m.cur / m.need) * 100)}%"></i></span><small>${m.cur}/${m.need}</small></span>
       ${m.claimed ? '<span class="ms-done">완료</span>' : m.claimable ? `<button class="btn primary sm" data-action="mission-claim" data-id="${m.id}">엽전 ${m.reward}</button>` : `<span class="ms-reward">엽전 ${m.reward}</span>`}
     </li>`).join('');
-  return `<div class="overlay screen home lobby-v2">
-    <div class="hud">
-      <button class="hud-me" data-action="profile" aria-label="프로필">
-        ${avatarHTML(options.avatar, 0, { me: true, cls: 'md' })}
-        <span class="hud-txt"><b>${name}</b><small>${title ? esc(title.text) : '새내기 도사'} · ${g.played}판 ${g.won}승</small></span>
-        ${tierBadgeHTML(rankedDisp, { size: 'sm' })}
-      </button>
-      <div class="hud-right">
-        <button class="hud-coin" data-action="shop" aria-label="엽전 · 상점"><i>🪙</i><b>${wallet.yeopjeon}</b></button>
-        <button class="iconbtn" data-action="rules" aria-label="룰 설명">?</button>
-        <button class="iconbtn" data-action="options" aria-label="설정">⚙</button>
-      </div>
-    </div>
-    <div class="home-hero">
-      <h1 class="logo" aria-label="조선 스플렌더">
-        <span class="logo-kicker">K · SPLENDOR</span>
-        <span class="logo-main"><span class="lm-a">조선</span><span class="lm-b">스플렌더</span></span>
-        <span class="logo-seal" aria-hidden="true">寶</span>
-      </h1>
-      <div class="hero-stage">
-        <div class="hero-chars" aria-hidden="true">${['t2-002', 't3-011'].map((id) => `<span class="hc side"><img src="${animSrc(id)}" onerror="this.onerror=null;this.src='${pokeSrc(id)}'" alt=""></span>`).join('')}</div>
-        <button class="hero-me" data-action="profile" aria-label="내 캐릭터 꾸미기">
-          ${avatarHTML(options.avatar, 0, { me: true, cls: 'xl' })}
-          <span class="hero-plate">${name}${title ? `<em class="ttl ${title.css}">${esc(title.text)}</em>` : ''}</span>
-          <span class="hero-edit">꾸미기</span>
-        </button>
-      </div>
-    </div>
-    ${notice ? `<p class="sheet-p warn">${esc(notice)}</p>` : ''}
-    <div class="news-row" aria-label="소식">${banners}</div>
-    <section class="missions">
-      <h2>오늘의 과제 ${claimable ? `<span class="ms-badge">${claimable}</span>` : ''}<small>자정에 새로 나와요</small></h2>
-      <ul>${missionRows}</ul>
-    </section>
-    <div class="home-match">
-      <div class="modetabs" role="tablist" aria-label="모드 선택">
-        <button class="modetab ${!ranked && !friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="normal">일반전</button>
-        <button class="modetab ${ranked ? 'sel' : ''}" role="tab" data-action="mode" data-mode="ranked">랭킹전${gate.unlocked ? '' : ' 🔒'}</button>
-        <button class="modetab ${friendly ? 'sel' : ''}" role="tab" data-action="mode" data-mode="friendly">친목전</button>
-      </div>
-      ${ranked ? rankedPanelHTML({ profile, gate, ban, rankedDisp }) : friendly ? lobbyPanelHTML(lobby) : normalPanel}
-    </div>
-    <nav class="tabbar v2">
-      <button data-action="shop"><span>🏮</span>상점${claimable ? '' : ''}</button>
-      <button data-action="dex"><span>📖</span>인물록</button>
-      <button class="tb-center" data-action="match-scroll"><span>⚔️</span>대전</button>
-      <button data-action="achv"><span>🏆</span>업적</button>
-      <button data-action="profile"><span>👤</span>내 정보</button>
-    </nav>
-  </div>`;
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">오늘의 과제<small>자정에 새로 나와요 · 모든 모드 집계</small></div>
+    <ul class="missions-list">${rows}</ul>
+    <div class="btnrow"><button class="btn primary" data-action="missions-close">닫기</button></div>
+  </div></div>`;
+}
+
+/** 친목전 방 목록 창 (기존 로비 패널 재사용) */
+export function roomsHTML(lobby) {
+  return `<div class="overlay"><div class="panel">
+    <div class="title big">친목전</div>
+    ${lobbyPanelHTML(lobby)}
+    <div class="btnrow"><button class="btn ghost" data-action="rooms-close">닫기</button></div>
+  </div></div>`;
+}
+
+/** 소식 상세 창 */
+export function newsHTML(n, look) {
+  if (!n) return '';
+  return `<div class="overlay"><div class="panel newspanel">
+    <div class="nb big ${n.cls}"><span class="nb-txt"><small>${esc(n.kicker)}</small><b>${esc(n.title)}</b><em>${esc(n.body)}</em></span>${n.art ? `<img class="nb-art" src="${pokeSrc(n.art)}" alt="">` : lookHTML(look, 'md nb-look')}</div>
+    <div class="btnrow"><button class="btn ghost" data-action="news-close">닫기</button>
+    <button class="btn primary" data-action="news-go" data-id="${n.id}">바로 가기</button></div>
+  </div></div>`;
 }
 
 /**

@@ -94,6 +94,11 @@ let net = null; // NetSession while in a friend room / online queue / online gam
 let queue = null; // { mode:'sim'|'net', size, isRoom, deadline, slots, starting, searching, notice }
 let netNotice = ''; // one-shot notice shown on the home/queue screen
 let dexOpen = false;
+// 로비 v3 창들
+let modeOpen = false, missionsOpen = false, roomsOpen = false, newsOpenId = null;
+const NEWS_SEEN_KEY = 'ohsp-news-seen';
+const newsSeen = () => { try { return JSON.parse(localStorage.getItem(NEWS_SEEN_KEY) || '[]'); } catch { return []; } };
+const markNewsSeen = (id) => { try { const a = newsSeen(); if (!a.includes(id)) { a.push(id); localStorage.setItem(NEWS_SEEN_KEY, JSON.stringify(a)); } } catch { /* 저장 불가 */ } };
 let rulesOpen = false;
 let achvOpen = false;
 let optionsOpen = false;
@@ -192,17 +197,23 @@ function render() {
   checkNetFail();
   { const ab = $('actionbar'); if (ab && ctrl) document.documentElement.style.setProperty('--dockh', ab.offsetHeight + 'px'); }
   syncLobbyWatch();
+  if (ctrl || queue) { modeOpen = false; missionsOpen = false; roomsOpen = false; newsOpenId = null; } // 게임·대기 중엔 로비 창을 닫아 둔다
   document.body.classList.toggle('on-result', !!(ctrl && ctrl.finished)); // 결과 화면 전용 배치(업적 알림 위치)
   // 온라인 상대의 꾸민 모습 (오프라인/AI 게임은 초상화)
   V.setSeatLooks(net?.looks?.length ? net.looks.map((c) => (c ? decodeLook(c) : null)) : null);
   let overlay;
+  let homeBase = ''; // 로비 위에 뜨는 창은 로비 장면을 뒤에 깔고 띄운다
   if (ctrl) overlay = ctrl.finished ? V.endHTML(ctrl, lastResult) : '';
   else if (queue) overlay = V.queueHTML(queueView());
   else {
     const profile = loadProfile(storage);
     const banMin = profile.ranked.queueBanUntil > Date.now() ? Math.ceil((profile.ranked.queueBanUntil - Date.now()) / 60000) : 0;
-    overlay = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby,
-      missions: missionRows(loadMissions(storage)), wallet: loadInventory(storage).wallet, news: NEWS });
+    overlay = homeBase = V.homeHTML({ options, dex: loadDex(storage), notice: netNotice, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin, sim: FORCE_SIM, lobby,
+      missions: missionRows(loadMissions(storage)), wallet: loadInventory(storage).wallet, news: NEWS, newsSeen: newsSeen() });
+    if (modeOpen) overlay = V.modeSheetHTML({ options, profile, gate: rankedUnlockStatus(profile, RANKED_ENFORCE), ban: banMin });
+    else if (missionsOpen) overlay = V.missionsHTML(missionRows(loadMissions(storage)));
+    else if (roomsOpen) overlay = V.roomsHTML(lobby);
+    else if (newsOpenId) overlay = V.newsHTML(NEWS.find((n) => n.id === newsOpenId), options.look);
     netNotice = '';
   }
   const prof = { error: profileError, name: pendingName ?? options.playerName, look: pendingLook || options.look, tab: lookTab, busy: profileBusy };
@@ -217,6 +228,7 @@ function render() {
   else if (leaveOpen && ctrl && !ctrl.finished) overlay = V.leaveConfirmHTML({ voidLeave: isEarlyLeave(ctrl.game.turn, ctrl.game.players.length) });
   else if (optionsOpen) overlay = V.optionsHTML(options, !!ctrl && !ctrl.finished);
   // Don't clobber a half-typed input on the home/join screens with an identical re-render.
+  if (homeBase && overlay !== homeBase) overlay = homeBase + overlay;
   setHTML('overlay', overlay);
   renderChat();
   juiceAfterRender(ctrl); // 점수/토큰 범프, +N 팝업, 마지막 라운드 알림
@@ -731,6 +743,22 @@ document.addEventListener('click', (e) => {
     case 'mission-claim': {
       const r = claimMission(storage, d.id);
       if (r.ok) { sfx.catch(); haptic(20); }
+      break;
+    }
+    case 'mode-open': modeOpen = true; break;
+    case 'mode-close': modeOpen = false; break;
+    case 'missions': missionsOpen = true; break;
+    case 'missions-close': missionsOpen = false; break;
+    case 'rooms-open': roomsOpen = true; break;
+    case 'rooms-close': roomsOpen = false; break;
+    case 'news-open': newsOpenId = d.id; markNewsSeen(d.id); break;
+    case 'news-close': newsOpenId = null; break;
+    case 'news-go': {
+      const n = NEWS.find((x) => x.id === d.id); newsOpenId = null;
+      if (!n) break;
+      if (n.action === 'mode') { options.mode = n.mode; saveOptions(storage, options); if (n.mode === 'friendly') roomsOpen = true; }
+      else if (n.action === 'dex') dexOpen = true;
+      else if (n.action === 'profile') { profileOpen = true; pendingAvatar = options.avatar; pendingName = null; pendingLook = null; profileError = ''; }
       break;
     }
     case 'match-scroll': // 하단 '대전' 탭: 일반·랭킹전은 바로 매칭, 친목전은 방 목록으로 스크롤

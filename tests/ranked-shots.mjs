@@ -36,8 +36,16 @@ async function playOut() {
     window.__render();
   });
 }
+// 로비 v3: 모드는 모드 선택 시트에서 고른다 (가운데 모드 카드는 떠다니는 애니메이션이라 force 클릭)
+async function setMode(m, keepOpen = false) {
+  await page.click('.mode-card', { force: true });
+  await page.waitForSelector('.mode-opt');
+  await page.click(`.mode-opt[data-mode="${m}"]`);
+  if (!keepOpen) await page.click('[data-action="mode-close"]');
+  await page.waitForTimeout(120);
+}
 async function startRankedGame() {
-  await click('[data-action="mode"][data-mode="ranked"]');
+  await setMode('ranked');
   await click('[data-action="match"]');
   await page.waitForSelector('#header .topbar', { timeout: 15000 });
 }
@@ -46,20 +54,24 @@ async function startRankedGame() {
 await page.goto(BASE + '?sim=1&fast=1');
 // 0. first visit: nickname prompt blocks the home until a name is saved
 await page.waitForSelector('#profname');
-ok((await page.textContent('.overlay .title')).includes('어서 오세요'), 'first-run nickname prompt');
+ok((await page.textContent('.overlay .panel .title')).includes('어서 오세요'), 'first-run nickname prompt');
 await shot('0-first-nickname');
 await click('[data-action="profile-save"]');
-ok((await page.textContent('.overlay')).includes('닉네임을 입력해 주세요'), 'empty nickname rejected');
+ok((await page.textContent('.overlay:not(.home) .panel, .overlay .panel')).includes('닉네임을 입력해 주세요'), 'empty nickname rejected');
 await page.fill('#profname', '테스터');
 await page.press('#profname', 'Enter');
 await page.waitForSelector('.home');
 await wait(300);
 await shot('1-home-normal');
-ok(await page.locator('.modetab').count() === 3, 'three mode tabs (normal / ranked / friendly)');
+ok(await page.locator('.lobby-v3 .mode-card').count() === 1, 'lobby v3 mode card');
+await page.click('.mode-card', { force: true }); await page.waitForSelector('.mode-opt');
+ok(await page.locator('.mode-opt').count() === 3, 'three modes (normal / ranked / friendly)');
+await page.click('[data-action="mode-close"]');
 ok(await page.locator('[data-action="room-join"]').count() === 0, 'join-by-code removed');
 
 // 1b. friendly lobby (sim shows sample rooms)
-await click('[data-action="mode"][data-mode="friendly"]');
+await setMode('friendly');
+await click('.cta-main[data-action="rooms-open"]');
 await wait(200);
 await shot('1b-home-friendly');
 ok((await page.textContent('.nonrank')).includes('랭크 점수 변동 없음'), 'friendly labelled non-ranked');
@@ -71,21 +83,23 @@ await page.waitForSelector('#lobbypwin');
 await page.fill('#lobbypwin', 'wrong');
 await page.press('#lobbypwin', 'Enter');
 await wait(200);
-ok((await page.textContent('.overlay')).includes('비밀번호가 맞지 않아요'), 'wrong password rejected');
+ok((await page.textContent('.overlay:not(.home) .panel, .overlay .panel')).includes('비밀번호가 맞지 않아요'), 'wrong password rejected');
 await shot('1c-lobby-password');
 await click('[data-action="lobby-pw-close"]');
 await click('[data-action="lobby-create"]');
 await page.waitForSelector('#lobbytitle');
 await shot('1d-lobby-create');
 await click('[data-action="lobby-create-close"]');
-await click('[data-action="mode"][data-mode="normal"]');
+await click('[data-action="rooms-close"]');
+await setMode('normal');
 
 // 2. ranked tab
-await click('[data-action="mode"][data-mode="ranked"]');
+await setMode('ranked', true);
 await wait(200);
 await shot('2-home-ranked');
 ok((await page.textContent('.rk-card')).includes('시범 시즌 0 · 비공식'), 'season label on ranked card');
 ok((await page.textContent('.rk-card')).includes('봇 채움 없음'), 'no bot fill text');
+await click('[data-action="mode-close"]');
 ok(await page.locator('.bigstart.ranked:not([disabled])').count() === 1, 'ranked start enabled by default flag');
 
 // 3. queue (2 of 4 seats filled, no bots)
@@ -127,7 +141,7 @@ for (const seed of [11, 12, 13, 14, 15, 16, 17, 18]) {
   });
   await page.reload();
   await page.waitForSelector('.home');
-  if (seed === 11) { await click('[data-action="mode"][data-mode="ranked"]'); await wait(150); await shot('2b-home-ranked-tier'); }
+  if (seed === 11) { await setMode('ranked'); await wait(150); await shot('2b-home-ranked-tier'); }
   await startRankedGame();
   await playOut();
   await page.waitForSelector('.result .rpblock');
@@ -155,7 +169,7 @@ await page.waitForSelector('.home');
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem('ohsp-profile-v1')).ranked.rating);
 ok(before - after === 15, `void leave -15 (was ${before} now ${after})`);
 await wait(100);
-ok((await page.textContent('.rk-card, .home-match')).length > 0, 'home after leave');
+ok(await page.locator('.lobby-v3').count() === 1, 'home after leave');
 
 // 7. shop
 await click('[data-action="shop"]');
@@ -177,7 +191,7 @@ await page.waitForSelector('.home');
 await shot('2c-home-equipped');
 
 // 8. equipped cosmetics in-game (normal mode, sim)
-await click('[data-action="mode"][data-mode="normal"]');
+await setMode('normal');
 await click('[data-action="match"]');
 await page.waitForSelector('#header .topbar', { timeout: 20000 });
 await page.evaluate(() => {
@@ -202,7 +216,7 @@ ok(await page.locator('.mp img.tiny[src^="assets/creatures/"]').count() >= 1, 'd
 // 9. lock flag: ?lock=1 shows locked ranked
 await page.goto(BASE + '?sim=1&fast=1&lock=1');
 await page.waitForSelector('.home');
-await click('[data-action="mode"][data-mode="ranked"]');
+await setMode('ranked');
 await wait(150);
 await shot('9-ranked-locked');
 ok(await page.locator('.bigstart.ranked[disabled]').count() === 1, 'locked start disabled with lock flag');
